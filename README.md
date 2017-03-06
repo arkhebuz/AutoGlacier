@@ -22,7 +22,7 @@ When this is not enough, look at `GTEU` class
 ## CONFIG
 Config default location is `~/.config/autoglacier/CONFIG.json`, it consists of a single dictionary like below:
 
-```json
+```python
 {
     # Default compression algorithm:
     'COMPRESSION' = "lzma",
