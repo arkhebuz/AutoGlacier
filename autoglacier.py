@@ -1,5 +1,5 @@
 ''' Amazon Glacier backup script aimed at simplicity, portability and extendability, 
-featuring data encryption and local metadata logging.
+featuring (some) file-picking functionality, data encryption and local metadata logging.
 '''
 import datetime
 import tarfile
@@ -124,7 +124,7 @@ class GTEU(object):
     }
     # Explicit list of files to be backed up (full paths)
     files = []
-    # List of glob patterns to me matched, result is added to `files` list
+    # List of glob patterns to be matched, result is added to `files` list
     list_of_globs = []
     # Archive description for Glacier upload
     description = "default description"
