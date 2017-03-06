@@ -77,10 +77,6 @@ class GTEU(object):
     GTEU class employs a simple 1-directional internal data/execution flow to do just that: 
       GTEU.gather() -> GTEU.tar() -> GTEU.encrypt() -> GTEU.upload()
     
-    In addition, process metadata (including backed-up files locations and their
-    SHA hashes) is saved into a flat-file JSON database indexed by unix timestamp
-    at script launch.
-    
     Backup job can be defined by inheriting from this class and overwriting 
     configuration variables, including lists of files to be backed up or
     directories to be backed-up non-recursively (Python glob module syntax).
@@ -89,7 +85,9 @@ class GTEU(object):
     on a newly defined class (see example).
     
     Backup is uploaded as an LZMA-compressed tar archive encrypted with AES using
-    RSA keys (only the public key is required).
+    RSA keys (only the public key is required). In addition, process metadata 
+    (including backed-up files locations and their SHA512 hashes) is saved into 
+    a flat-file JSON database indexed by unix timestamp at script launch.
     
     Currently this class is ill-siuted for large files (single-part upload only,
     in-memory file hashing) or huge numbers of small files (separate hashing and
@@ -111,11 +109,8 @@ class GTEU(object):
       'TMP_DIR': "C:\\TMP",
       # JSON metadata log file location
       'JSON_DATABASE': 'C:\\logs\log.json',
-    
-      # Passphrase used for key generation and file decryption
-      'RSA_PASSPHRASE': None,     # None == no passphrase
+      # Public RSA key for data encryption
       'PUBL_RSA_KEY_PATH': ".\my_rsa_public.pem",
-    
       # Glacier account (IAM user) settings - single user, region and vault
       'REGION_NAME': 'eu-west-1',
       'VAULT_NAME': 'TestVault1',
@@ -271,6 +266,20 @@ class GTEU(object):
         finally:
             gbbg.tmp_clean()
 
+    @classmethod
+    def read_config(cls, path):
+        with open(path, 'r') as f:
+            cls.CONFIG = json.load(f)
+
+
+def auto_glacier(files, list_of_globs, description):
+    class Backup(GTEU):
+        files = files
+        list_of_globs = list_of_globs
+        description = description
+
+    Backup.read_config('~/.config/autoglacier/CONFIG.json')
+    Backup.run()
 
 
 if __name__ == "__main__":
