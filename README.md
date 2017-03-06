@@ -1,15 +1,13 @@
 Amazon Glacier backup script aimed at simplicity, portability and extendability, 
-featuring (some) file-picking functionality, data encryption and local metadata logging.
+featuring (some) file-picking functionality, data encryption and local metadata logging. Alpha at the moment.
 
-Alpha at the moment.
----
 
 ## GTEU class
 
 **G**athers files, **T**ars them up, **E**ncrypts and **U**ploads them into Glacier 
     
 Use case: 1 AWS user uploads 1 encrypted single-part archive to a single Glacier vault.
-GTEU class employs a simple 1-directional internal data/execution flow to do just that: 
+GTEU class employs a simple 1-directional internal data/execution flow to do just that:  
   `GTEU.gather() -> GTEU.tar() -> GTEU.encrypt() -> GTEU.upload()`
 
 In addition, process metadata (including backed-up files locations and their
@@ -39,17 +37,17 @@ fully thread-safe (data log writing, race condition with timestamps)
 import glob, os
 from autoglacier import GTEU
 
-
 class Backup(GTEU):
     # A JSON configuration dictionary
     CONFIG = {
       # Default compression algorithm:
       'COMPRESSION' = "lzma",
+      # Temporary dir location
       'TMP_DIR': "/tmp",
+      # JSON metadata log file location
       'JSON_DATABASE': '/home/arkhebuz/AutoGlacier/log.json',
     
-      # passphrase used for key generation and file decryption
-      'RSA_PASSPHRASE': None,     # None == no passphrase
+      # Public RSA key for data encryption
       'PUBL_RSA_KEY_PATH': "/home/arkhebuz/AutoGlacier/my_rsa_public.pem",
     
       # Glacier account (IAM user) settings - single user, region and vault
@@ -58,13 +56,10 @@ class Backup(GTEU):
       'AWS_ACCESS_KEY_ID': "key",
       'AWS_SECRET_ACCESS_KEY': "key",
     }
-
     # Explicit list of files to be backed up (full paths)
-    files = ['/home/arkhebuz/view.sh'. /home/arkhebuz/login.sh']
-
+    files = ['/home/arkhebuz/view.sh'. '/home/arkhebuz/login.sh']
     # List of glob patterns to be matched, result is added to `files` list
     list_of_globs = ['/home/arkhebuz/scripts/*.sh',]
-
     # Archive description for Glacier upload
     description = "shell scripts archive"
     
@@ -72,7 +67,6 @@ class Backup(GTEU):
     def gather_hook(self):
         newest = max(glob.iglob('/home/arkhebuz/bugging/bug*.sh'), key=os.path.getmtime)
         self.files.append(newest)
-
 
 if __name__ == "__main__":
     Backup.run()    # Run is a classmethod
