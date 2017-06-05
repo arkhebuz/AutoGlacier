@@ -5,11 +5,10 @@ featuring (some) file-picking functionality, data compression, encryption and lo
 ## auto_glacier
 
 Providing you do not need to implement more advanced file-picking behavoirs and place CONFIG in a
- JSON file in a default location you can use simple auto_glacier function:
+ JSON file in a default location you can use simple `auto_glacier` function:
 ```python
-from autoglacier import auto_glacier
-
-auto_glacier(files, list_of_globs, description)
+>>> from autoglacier import auto_glacier
+>>> auto_glacier(files, list_of_globs, description)
 
 ```
 
@@ -17,6 +16,8 @@ Where:
   - `files` - list of explicit paths to files to be backed up
   - `list_of_globs` - list of glob patterns to be matched
   - `description` - archive description string
+
+
 When this is not enough, look at `GTEU` class
 
 ## CONFIG
@@ -25,7 +26,7 @@ Config default location is `~/.config/autoglacier/CONFIG.json`, it consists of a
 ```python
 {
     # Default compression algorithm:
-    'COMPRESSION' = "lzma",
+    'COMPRESSION' : "lzma",
     # Temporary dir location
     'TMP_DIR': "/tmp",
     # JSON metadata log file location
@@ -106,7 +107,7 @@ if __name__ == "__main__":
     Backup.run()    # Run is a classmethod
 ```
 
-CONFIG can be also saved to JSON file and read with `read_config` classmethod, like that:
+CONFIG can be also read from JSON file with `read_config` classmethod, like that:
 
 ```python
 import glob, os

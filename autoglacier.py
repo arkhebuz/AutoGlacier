@@ -104,7 +104,7 @@ class GTEU(object):
     # A JSON configuration dictionary
     CONFIG = {
       # Default compression algorithm
-      'COMPRESSION' = "lzma",
+      'COMPRESSION' : "lzma",
       # Temporary dir location
       'TMP_DIR': "C:\\TMP",
       # JSON metadata log file location
