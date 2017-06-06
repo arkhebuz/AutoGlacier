@@ -1,5 +1,7 @@
 *.pyc
 __pycache__
+.cache
+
 
 tmp
 __test_backup_structure

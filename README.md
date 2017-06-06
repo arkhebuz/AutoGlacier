@@ -130,3 +130,7 @@ if __name__ == "__main__":
     Backup.read_config('/home/arkhebuz/AutoGlacier/CONFIG.json')
     Backup.run()
 ```
+
+
+PYTHONPATH=./; export PYTHONPATH
+pytest --pyargs autoglacier

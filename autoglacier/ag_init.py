@@ -47,7 +47,6 @@ def initialize_ag(argparse_args):
     
     # TODO: GTEU verification on an empty database
 
-
 def insert_configuration_set(CONFIG, db_cursor):
     ''' 
     CONFIG - configuration set in JSON representation
@@ -70,7 +69,6 @@ def insert_configuration_set(CONFIG, db_cursor):
                        +'set_id, region_name, vault_name, public_key, compression_algorithm, '
                        +'temporary_dir, ag_database_dir, aws_access_key_id, aws_secret_access_key'
                        +') VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'), values)
-
 
 def initiate_databse(CONFIG):
     """ Initiates Database with CONFIG in config table """
@@ -124,8 +122,6 @@ def initiate_databse(CONFIG):
         raise RuntimeError
         # TODO: rethink this
 
-
-
 def gen_RSA_keys(PRIV_RSA_KEY_PATH, PUBL_RSA_KEY_PATH, RSA_PASSPHRASE=None):
     ''' Helper function - RSA keys generation '''
     key = RSA.generate(2048)
@@ -134,6 +130,16 @@ def gen_RSA_keys(PRIV_RSA_KEY_PATH, PUBL_RSA_KEY_PATH, RSA_PASSPHRASE=None):
         f.write(encrypted_key)
     with open(PUBL_RSA_KEY_PATH, 'wb') as f:
         f.write(key.publickey().exportKey())
+
+
+
+
+
+
+
+
+
+
 
 def decrypt_archive(encrypted_file, PRIV_RSA_KEY_PATH, output_file='decrypted.tar.xz', RSA_PASSPHRASE=None):
     ''' Helper function - file decryption '''
@@ -156,75 +162,6 @@ def download_archive():
     # TODO
     pass
 
-def do_backup_job():
-    # TODO
-    gteu = GTEU()
-    gteu.get_files_from_db()
-    gteu.archive_files()
-    gteu.encrypt_files()
-    gteu.glacier_upload()
-    gteu.clean_tmp()
-
-
-class GTEU(object):
-    # Formats supported by stdlib's tarfile:
-    _comp = {'gzip': [':gz', '.tar.gz'],
-             'lzma': [':xz', '.tar.xz'],
-             'bzip2': [':bz2', '.tar.bz2'],
-             'none': ['', '.tar'],
-             '': ['', '.tar']}
-    
-    def __init__(self):
-        pass
-    
-    def get_files_from_db(self):
-        pass
-    
-    def archive_files(self):
-        pass
-    
-    def encrypt_archive(self):
-        pass
-    
-    def _generate_description(sef):
-        pass
-    
-    def glacier_upload(self):
-        pass
-    
-    def clean_tmp(self):
-        pass
-
-
-class FileManager(object):
-    def __init__(self, CONFIG):
-        self.files = []
-        self.CONFIG = CONFIG
-        self.TIMESTAMP = time.time()
-
-    def _glob_dirs(self, list_of_globs):
-        # TODO: nested dirs? - cannot hash folder
-        for adir in list_of_globs:
-            self.files = self.files + list(glob.iglob(adir))
-    
-    def _register_files(self):
-        ag_database = os.path.join(self.CONFIG['AG_DATABASE_DIR'], 'AG_database.sqlite')
-        conn = sqlite3.connect(ag_database)
-        c = conn.cursor()
-        
-        values2d = []
-        for afile in self.files:
-            values2d.append((os.path.abspath(afile), self.TIMESTAMP, 1, -1, 1))
-            #~ modtime = os.path.getmtime(afile)
-            # calculate hash - memory inefficient method
-            #~ with open(afile, 'rb') as f:
-                #~ filehash = hashlib.sha512(f.read()).hexdigest()
-            #~ SHA512=filehash
-        
-        c.executemany( ('INSERT OR IGNORE INTO Files ('
-                       +'abs_path, registration_date, file_exists, last_backed, registered'
-                       +') VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'), values2d)
-        conn.commit()
 
 
 def __remove_database_dir_with_contents(CONFIG):
