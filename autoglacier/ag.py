@@ -80,20 +80,21 @@ def initiate_databse(CONFIG):
         c = conn.cursor()
         
         c.execute( ('CREATE TABLE Files ('
-                   +'file_id            INTEGER PRIMARY KEY NOT NULL, '
-                   +'abs_path           TEXT NOT NULL, '
+                   +'abs_path           TEXT PRIMARY KEY NOT NULL, '
                    +'registration_date  INT NOT NULL, '
+                   +'file_exists        INT NOT NULL, '
                    +'last_backed        INT, '
                    +'registered         INT)') )
+        #~ c.execute( 'CREATE INDEX abs_path_index ON Files (abs_path)' )
         
         c.execute( ('CREATE TABLE Backups ('
-                   +'file_id        INTEGER NOT NULL, '
+                   +'abs_path       TEXT PRIMARY KEY NOT NULL, '
                    +'mod_date       INT NOT NULL, '
                    +'sha512         TEXT NOT NULL, '
                    +'job_id         INT NOT NULL)') )
         
         c.execute( ('CREATE TABLE Jobs ('
-                   +'job_id                 INT NOT NULL, '
+                   +'job_id                 INT PRIMARY KEY NOT NULL, '
                    +'arch_size              INT NOT NULL, '
                    +'response               TEXT, '
                    +'location               TEXT NOT NULL, '
@@ -106,7 +107,7 @@ def initiate_databse(CONFIG):
                    +'errors_message         TEXT)') )
         
         c.execute( ('CREATE TABLE ConfigurationSets ('
-                   +'set_id                 INT NOT NULL, '
+                   +'set_id                 INT PRIMARY KEY NOT NULL, '
                    +'region_name            TEXT NOT NULL, '
                    +'vault_name             TEXT NOT NULL, '
                    +'public_key             TEXT NOT NULL, '
@@ -163,7 +164,6 @@ def do_backup_job():
     gteu.encrypt_files()
     gteu.glacier_upload()
     gteu.clean_tmp()
-    pass
 
 
 class GTEU(object):
@@ -196,21 +196,53 @@ class GTEU(object):
         pass
 
 
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.WARNING,
-                        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+class FileManager(object):
+    def __init__(self, CONFIG):
+        self.files = []
+        self.CONFIG = CONFIG
+        self.TIMESTAMP = time.time()
 
-    parser = argparse.ArgumentParser(prog='AutoGlacier',
-                       description="AG")
-    subparsers = parser.add_subparsers()
+    def _glob_dirs(self, list_of_globs):
+        # TODO: nested dirs? - cannot hash folder
+        for adir in list_of_globs:
+            self.files = self.files + list(glob.iglob(adir))
+    
+    def _register_files(self):
+        ag_database = os.path.join(self.CONFIG['AG_DATABASE_DIR'], 'AG_database.sqlite')
+        conn = sqlite3.connect(ag_database)
+        c = conn.cursor()
+        
+        values2d = []
+        for afile in self.files:
+            values2d.append((os.path.abspath(afile), self.TIMESTAMP, 1, -1, 1))
+            #~ modtime = os.path.getmtime(afile)
+            # calculate hash - memory inefficient method
+            #~ with open(afile, 'rb') as f:
+                #~ filehash = hashlib.sha512(f.read()).hexdigest()
+            #~ SHA512=filehash
+        
+        c.executemany( ('INSERT OR IGNORE INTO Files ('
+                       +'abs_path, registration_date, file_exists, last_backed, registered'
+                       +') VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'), values2d)
+        conn.commit()
 
-    init = subparsers.add_parser('init', help="Initialize AutoGlacier configuration and database")
-    init.set_defaults(func=initialize_ag)
-    init.add_argument('config_file', help="Config file in JSON format")
-    init.add_argument('--gen-keys', help="Generate RSA key pair", action='store_true')
 
-    backup = subparsers.add_parser('backup', help="Do backup Job")
-    backup.set_defaults(func=do_backup_job)
+def __remove_database_dir_with_contents(CONFIG):
+    import shutil
+    shutil.rmtree(CONFIG['AG_DATABASE_DIR'])
 
-    args = parser.parse_args()
-    args.func(args)
+def __create_test_backup_files_and_dirs():
+    root_test_dir = './__test_backup_structure'
+    os.mkdir(root_test_dir)
+    
+    dir1 = os.path.join(root_test_dir, 'dir1')
+    os.mkdir(dir1)
+    dir2 = os.path.join(root_test_dir, 'dir2')
+    os.mkdir(dir2)
+    for char in 'a10':
+        for adir in (dir1, dir2):
+            with open(os.path.join(adir, char), 'w') as f:
+                f.write(char*10**5)
+
+
+
