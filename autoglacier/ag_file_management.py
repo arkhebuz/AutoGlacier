@@ -18,7 +18,7 @@ class FileManager(object):
             self.files = self.files + list(glob.iglob(adir))
     
     def _register_files(self):
-        ag_database = os.path.join(self.CONFIG['AG_DATABASE_DIR'], 'AG_database.sqlite')
+        ag_database = os.path.join(self.CONFIG['ag_database_dir'], 'AG_database.sqlite')
         conn = sqlite3.connect(ag_database)
         c = conn.cursor()
         
@@ -35,3 +35,4 @@ class FileManager(object):
                        +'abs_path, registration_date, file_exists, last_backed, registered'
                        +') VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'), values2d)
         conn.commit()
+        conn.close()

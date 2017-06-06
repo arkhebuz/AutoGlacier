@@ -1,11 +1,11 @@
 {
-  "SET_ID" : 0,
-  "COMPRESSION_ALGORITHM" : "lzma",
-  "TEMPORARY_DIR": "C:\\TMP",
-  "AG_DATABASE_DIR": "./tmp/",
-  "PUBL_RSA_KEY_PATH": ".\\my_rsa_public.pem",
-  "REGION_NAME": "eu-west-1",
-  "VAULT_NAME": "TestVault1",
-  "AWS_ACCESS_KEY_ID": " ",
-  "AWS_SECRET_ACCESS_KEY": " "
+  "set_id" : 0,
+  "compression_algorithm" : "lzma",
+  "temporary_dir": "C:\\TMP",
+  "ag_database_dir": "./tmp/",
+  "public_key": ".\\my_rsa_public.pem",
+  "region_name": "eu-west-1",
+  "vault_name": "TestVault1",
+  "aws_access_key_id": " ",
+  "aws_secret_access_key": " "
 }

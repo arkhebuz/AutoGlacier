@@ -23,8 +23,8 @@ def initialize_ag(argparse_args):
     config_path = argparse_args.config_file
     with open(config_path, 'r') as f:
         CONFIG = json.load(f)
-    CONFIG['SET_ID'] = 0
-    database_dir = CONFIG['AG_DATABASE_DIR']
+    CONFIG['set_id'] = 0
+    database_dir = CONFIG['ag_database_dir']
     try: 
         os.mkdir(database_dir)
     except FileExistsError:
@@ -53,14 +53,14 @@ def insert_configuration_set(CONFIG, db_cursor):
     db_cursor - open AC database cursor'''
     try:
         values = (0, 
-                  CONFIG['REGION_NAME'], 
-                  CONFIG['VAULT_NAME'], 
-                  CONFIG['PUBL_RSA_KEY_PATH'], 
-                  CONFIG['COMPRESSION_ALGORITHM'], 
-                  CONFIG['TEMPORARY_DIR'], 
-                  CONFIG['AG_DATABASE_DIR'], 
-                  CONFIG['AWS_ACCESS_KEY_ID'], 
-                  CONFIG['AWS_SECRET_ACCESS_KEY'])
+                  CONFIG['region_name'], 
+                  CONFIG['vault_name'], 
+                  CONFIG['public_key'], 
+                  CONFIG['compression_algorithm'], 
+                  CONFIG['temporary_dir'], 
+                  CONFIG['ag_database_dir'], 
+                  CONFIG['aws_access_key_id'], 
+                  CONFIG['aws_secret_access_key'])
     except KeyError:
         print('pls fix conf')
         raise
@@ -118,6 +118,7 @@ def initiate_databse(CONFIG):
         
         insert_configuration_set(CONFIG, c)
         conn.commit()
+        conn.close()
     else:
         raise RuntimeError
         # TODO: rethink this
@@ -132,13 +133,16 @@ def gen_RSA_keys(PRIV_RSA_KEY_PATH, PUBL_RSA_KEY_PATH, RSA_PASSPHRASE=None):
         f.write(key.publickey().exportKey())
 
 
-
-
-
-
-
-
-
+def read_config_from_db(database_path, set_id=0):
+    conn = sqlite3.connect(database_path)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute( 'SELECT * FROM ConfigurationSets WHERE set_id={}'.format(set_id) )
+    CONFIG = c.fetchone()
+    #~ print(all_rows['set_id'])
+    conn.close()
+    return CONFIG
+#~ read_config_from_db('./tmp/AG_database.sqlite')
 
 
 def decrypt_archive(encrypted_file, PRIV_RSA_KEY_PATH, output_file='decrypted.tar.xz', RSA_PASSPHRASE=None):
@@ -166,7 +170,7 @@ def download_archive():
 
 def __remove_database_dir_with_contents(CONFIG):
     import shutil
-    shutil.rmtree(CONFIG['AG_DATABASE_DIR'])
+    shutil.rmtree(CONFIG['ag_database_dir'])
 
 def __create_test_backup_files_and_dirs():
     root_test_dir = './__test_backup_structure'
