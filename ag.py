@@ -11,6 +11,7 @@ import glob
 import time
 # Beyond stdlib
 import boto3
+# pycryptodome package
 from Crypto.PublicKey import RSA
 from Crypto.Random import get_random_bytes
 from Crypto.Cipher import AES, PKCS1_OAEP
@@ -19,7 +20,6 @@ from Crypto.Cipher import AES, PKCS1_OAEP
 
 def initialize_ag(argparse_args):
     # TODO: check if already not initialized
-    # TODO: enable RSA key generation
     config_path = argparse_args.config_file
     with open(config_path, 'r') as f:
         CONFIG = json.load(f)
@@ -29,13 +29,21 @@ def initialize_ag(argparse_args):
         os.mkdir(database_dir)
     except FileExistsError:
         pass
-        
+    else:
+        os.mkdir(os.path.join(database_dir, 'logs'))
+    
     initiate_databse(CONFIG)
     
-    new_config_path = os.path.join(database_dir, 'CONFIG.json')
-    if not os.path.isfile(new_config_path):
-        with open(new_config_path, 'w') as f:
+    # Just a handy copy of original config file
+    new_config_json = os.path.join(database_dir, 'CONFIG.json')
+    if not os.path.isfile(new_config_json):
+        with open(new_config_json, 'w') as f:
             json.dump(CONFIG, f, indent=2)
+    
+    if argparse_args.gen_keys:
+        public = os.path.join(database_dir, 'AG_RSA_public.pem')
+        private = os.path.join(database_dir, 'AG_RSA_private.pem')
+        gen_RSA_keys(public, private)
     
     # TODO: GTEU verification on an empty database
 
@@ -66,7 +74,7 @@ def insert_configuration_set(CONFIG, db_cursor):
 
 def initiate_databse(CONFIG):
     """ Initiates Database with CONFIG in config table """
-    ag_database = CONFIG['AG_DATABASE_PATH']
+    ag_database = os.path.join(CONFIG['AG_DATABASE_DIR'], 'AG_database.sqlite')
     if not os.path.isfile(ag_database):
         conn = sqlite3.connect(ag_database)
         c = conn.cursor()
@@ -149,11 +157,43 @@ def download_archive():
 
 def do_backup_job():
     # TODO
+    gteu = GTEU()
+    gteu.get_files_from_db()
+    gteu.archive_files()
+    gteu.encrypt_files()
+    gteu.glacier_upload()
+    gteu.clean_tmp()
     pass
+
 
 class GTEU(object):
-    pass
-
+    # Formats supported by stdlib's tarfile:
+    _comp = {'gzip': [':gz', '.tar.gz'],
+             'lzma': [':xz', '.tar.xz'],
+             'bzip2': [':bz2', '.tar.bz2'],
+             'none': ['', '.tar'],
+             '': ['', '.tar']}
+    
+    def __init__(self):
+        pass
+    
+    def get_files_from_db(self):
+        pass
+    
+    def archive_files(self):
+        pass
+    
+    def encrypt_archive(self):
+        pass
+    
+    def _generate_description(sef):
+        pass
+    
+    def glacier_upload(self):
+        pass
+    
+    def clean_tmp(self):
+        pass
 
 
 if __name__ == "__main__":
@@ -167,10 +207,10 @@ if __name__ == "__main__":
     init = subparsers.add_parser('init', help="Initialize AutoGlacier configuration and database")
     init.set_defaults(func=initialize_ag)
     init.add_argument('config_file', help="Config file in JSON format")
-    init.add_argument('--gen-keys', help="Generate RSA key pair")
+    init.add_argument('--gen-keys', help="Generate RSA key pair", action='store_true')
 
     backup = subparsers.add_parser('backup', help="Do backup Job")
-    nackup.set_defaults(func=do_backup_job)
+    backup.set_defaults(func=do_backup_job)
 
     args = parser.parse_args()
     args.func(args)
