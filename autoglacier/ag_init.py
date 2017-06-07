@@ -1,14 +1,18 @@
-""" AG - AutoGlacier"""
+""" AG - AutoGlacier
+
+# program installation initialization
+`autoglacier init /path/to/cfg.file --gen-keys [--autotest]`
+
+"""
 import argparse
 import logging
 import sqlite3
-import json
-import os
-#~ import datetime
 import tarfile
 import hashlib
+import json
 import glob
 import time
+import os
 # Beyond stdlib
 import boto3
 # pycryptodome package
@@ -29,9 +33,17 @@ def initialize_ag(argparse_args):
         os.mkdir(database_dir)
     except FileExistsError:
         pass
-    else:
+    try:
         os.mkdir(os.path.join(database_dir, 'logs'))
+    except FileExistsError:
+        pass
     
+    if argparse_args.gen_keys:
+        public = os.path.join(database_dir, 'AG_RSA_public.pem')
+        private = os.path.join(database_dir, 'AG_RSA_private.pem')
+        public_key = gen_RSA_keys(public, private)
+        CONFIG['public_key'] = str(public_key)
+
     initiate_databse(CONFIG)
     
     # Just a handy copy of original config file
@@ -39,11 +51,6 @@ def initialize_ag(argparse_args):
     if not os.path.isfile(new_config_json):
         with open(new_config_json, 'w') as f:
             json.dump(CONFIG, f, indent=2)
-    
-    if argparse_args.gen_keys:
-        public = os.path.join(database_dir, 'AG_RSA_public.pem')
-        private = os.path.join(database_dir, 'AG_RSA_private.pem')
-        gen_RSA_keys(public, private)
     
     # TODO: GTEU verification on an empty database
 
@@ -72,7 +79,7 @@ def insert_configuration_set(CONFIG, db_cursor):
 
 def initiate_databse(CONFIG):
     """ Initiates Database with CONFIG in config table """
-    ag_database = os.path.join(CONFIG['AG_DATABASE_DIR'], 'AG_database.sqlite')
+    ag_database = os.path.join(CONFIG['ag_database_dir'], 'AG_database.sqlite')
     if not os.path.isfile(ag_database):
         conn = sqlite3.connect(ag_database)
         c = conn.cursor()
@@ -81,26 +88,25 @@ def initiate_databse(CONFIG):
                    +'abs_path           TEXT PRIMARY KEY NOT NULL, '
                    +'registration_date  INT NOT NULL, '
                    +'file_exists        INT NOT NULL, '
-                   +'last_backed        INT, '
                    +'registered         INT)') )
         #~ c.execute( 'CREATE INDEX abs_path_index ON Files (abs_path)' )
         
         c.execute( ('CREATE TABLE Backups ('
-                   +'abs_path       TEXT PRIMARY KEY NOT NULL, '
+                   +'abs_path       TEXT NOT NULL, '
                    +'mod_date       INT NOT NULL, '
                    +'sha512         TEXT NOT NULL, '
                    +'job_id         INT NOT NULL)') )
         
         c.execute( ('CREATE TABLE Jobs ('
                    +'job_id                 INT PRIMARY KEY NOT NULL, '
-                   +'arch_size              INT NOT NULL, '
-                   +'response               TEXT, '
-                   +'location               TEXT NOT NULL, '
-                   +'sha512_checksum        TEXT NOT NULL, '
-                   +'archive_id             TEXT NOT NULL, '
-                   +'description            TEXT NOT NULL, '
                    +'configuration_set_id   INT NOT NULL, '
                    +'timestamp              INT NOT NULL, '
+                   +'description            TEXT NOT NULL, '
+                   +'arch_size              INT NOT NULL, '
+                   +'sha512_checksum        TEXT NOT NULL, '
+                   +'location               TEXT NOT NULL, '
+                   +'response               TEXT, '
+                   +'archive_id             TEXT NOT NULL, '
                    +'success                INT NOT NULL, '
                    +'errors_message         TEXT)') )
         
@@ -129,20 +135,10 @@ def gen_RSA_keys(PRIV_RSA_KEY_PATH, PUBL_RSA_KEY_PATH, RSA_PASSPHRASE=None):
     encrypted_key = key.exportKey(passphrase=RSA_PASSPHRASE, pkcs=8, protection="scryptAndAES128-CBC")
     with open(PRIV_RSA_KEY_PATH, 'wb') as f:
         f.write(encrypted_key)
+    public_key_str = key.publickey().exportKey()
     with open(PUBL_RSA_KEY_PATH, 'wb') as f:
-        f.write(key.publickey().exportKey())
-
-
-def read_config_from_db(database_path, set_id=0):
-    conn = sqlite3.connect(database_path)
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-    c.execute( 'SELECT * FROM ConfigurationSets WHERE set_id={}'.format(set_id) )
-    CONFIG = c.fetchone()
-    #~ print(all_rows['set_id'])
-    conn.close()
-    return CONFIG
-#~ read_config_from_db('./tmp/AG_database.sqlite')
+        f.write(public_key_str)
+    return public_key_str
 
 
 def decrypt_archive(encrypted_file, PRIV_RSA_KEY_PATH, output_file='decrypted.tar.xz', RSA_PASSPHRASE=None):
@@ -161,29 +157,4 @@ def decrypt_archive(encrypted_file, PRIV_RSA_KEY_PATH, output_file='decrypted.ta
      
     with open(output_file, 'wb') as f:
         f.write(data)
-
-def download_archive():
-    # TODO
-    pass
-
-
-
-def __remove_database_dir_with_contents(CONFIG):
-    import shutil
-    shutil.rmtree(CONFIG['ag_database_dir'])
-
-def __create_test_backup_files_and_dirs():
-    root_test_dir = './__test_backup_structure'
-    os.mkdir(root_test_dir)
-    
-    dir1 = os.path.join(root_test_dir, 'dir1')
-    os.mkdir(dir1)
-    dir2 = os.path.join(root_test_dir, 'dir2')
-    os.mkdir(dir2)
-    for char in 'a10':
-        for adir in (dir1, dir2):
-            with open(os.path.join(adir, char), 'w') as f:
-                f.write(char*10**5)
-
-
 
