@@ -24,19 +24,20 @@ from autoglacier.ag_misc import read_config_from_db
 
 
 def do_backup_job(argparse_args):
-    CONFIG = read_config_from_db(argparse_args.database)
+    CONFIG = read_config_from_db(argparse_args.database, set_id=argparse_args.configid)
     
     # TODO: error handling (make GTEU a context manager?)
     gteu = GTEU(CONFIG, argparse_args.database, 'asdf')
     gteu.get_files_from_db()
     gteu.archive_files()
-    #~ gteu.encrypt_files()
+    gteu.encrypt_files()
     #~ gteu.glacier_upload()
     #~ gteu.clean_tmp()
 
 
 
 class GTEU(object):
+    """ Checks which files should be backed up, then backs them up """
     # Formats supported by stdlib's tarfile:
     _comp = {'gzip': [':gz', '.tar.gz'],
              'lzma': [':xz', '.tar.xz'],
@@ -49,9 +50,9 @@ class GTEU(object):
         self.CONFIG = CONFIG
         self.timestamp = time.time()
         self.database_path = database_path
-        seld.description = description
-        self.logging.info("Running Job on %s database, configuration set %s",
-                          self.database_path, CONFIG['set_id'])
+        self.description = description
+        self.logger.info("Running Job on %s database, configuration set %s",
+                         self.database_path, CONFIG['set_id'])
         
         conn = sqlite3.connect(database_path)
         c = conn.cursor()
@@ -61,7 +62,7 @@ class GTEU(object):
             self.logger.info('First job (job_id=0)')
             max_id = -1
         self.job_id = max_id+1
-        self.logger.info('job_id = %s', self.job_id)
+        self.logger.info("job_id = %s", self.job_id)
         
         values = (self.job_id, CONFIG['set_id'], self.timestamp, description, -1,
                   "", "", "", "", -1, "")
@@ -81,8 +82,15 @@ class GTEU(object):
         c = conn.cursor()
         
         if self.job_id > 0:
-            c.execute('SELECT timestamp FROM Jobs WHERE job_id={} AND success=1'.format(self.job_id-1))
-            previous_job_timestamp = c.fetchone()[0]
+            c.execute('SELECT max(job_id) FROM Jobs WHERE job_id < {} AND success=1'.format(self.job_id))
+            last_succesfull_job = c.fethone()[0]
+            if last_succesfull_job is not None:
+                self.logging.debug("Previous succesfull job id = %s", last_succesfull_job)
+                c.execute('SELECT timestamp FROM Jobs WHERE job_id={}'.format(last_succesfull_job))
+                previous_job_timestamp = c.fetchone()[0]
+            else:
+                self.logging.debug("All previous jobs failed")
+                previous_job_timestamp = -1
         else:
             previous_job_timestamp = -1
         
@@ -113,14 +121,14 @@ class GTEU(object):
         conn.close()
     
     def archive_files(self):
-        print('Tar...')
-        flag, extension = self._comp[self.CONFIG['compression']]
-        archive_name = 'arch_jid'+str(self.job_id)+'_'+str(self.timestamp)+extension
+        #~ print('Tar...')
+        flag, extension = self._comp[self.CONFIG['compression_algorithm']]
+        archive_name = 'AG_arch_jid'+str(self.job_id)+'_'+str(self.timestamp)+extension
         self.archive = os.path.join(self.CONFIG['temporary_dir'], archive_name)
         
         with tarfile.open(self.archive, "w"+flag) as tar:
             for path in self.tbd_file_backups:
-                self.logging.debug('Pasking file %s', path)
+                self.logger.debug("Packing file %s", path)
                 modtime = os.path.getmtime(path)
                 with open(path, 'rb') as f:
                     filehash = hashlib.sha512(f.read()).hexdigest()
@@ -129,7 +137,7 @@ class GTEU(object):
         
     def encrypt_archive(self):
         ''' Encrypts archive with AES'''
-        print('Encrypt...')
+        #~ print('Encrypt...')
         key = self.CONFIG['public_key']
         self.encrypted_archive = self.archive+'.bin'
         
@@ -150,11 +158,14 @@ class GTEU(object):
             out_file.write(ciphertext)
         
     def _generate_description(sef):
+        """ description should fit within 1024 ascii chars """
         pass
     
+    # This method could really be something external, invoked by GTEU
+    # It may require DB reorganization (i.e. new table: uploaders), however
     def glacier_upload(self):
         ''' Uploads archive '''
-        print('Upload...')
+        #~ print('Upload...')
         
         glacier = boto3.client('glacier',
                                region_name = self.CONFIG['region_name'],
@@ -165,12 +176,31 @@ class GTEU(object):
                                           archiveDescription = self.description,
                                           body = open(self.encrypted_archive, 'rb'))
         print(str(response))
+        self.logger.debug(repr(response))
+        
+        location = response['location']
+        checksum = response['checksum']
+        archiveId = response['archiveId']
+
+        status = 0
+        if response["ResponseMetadata"]['HTTPStatusCode'] == 201:
+            status = 1
     
-        # Jobs table is updated
-        # self.new_backups is written to Backups table if backup job succeds
-        #~ c.executemany( ('INSERT INTO Backups ('
-                       #~ +'abs_path, mod_date, sha512, job_id'
-                       #~ +') VALUES (?, ?, ?, ?)'), self.new_backups)
-    
+       # Jobs table is updated
+        conn = sqlite3.connect(self.database_path)
+        c = conn.cursor()
+        # TODO: archive_size
+        # TODO: proper chars escape???
+        c.execute( ('UPDATE Jobs SET location={}, sha512_checksum={}, '.format(location, checksum)
+                   +'archive_id={}, response={}, success={}'.format(archiveId, repr(response), status)
+                   +' WHERE job_id={}'.format(self.job_id)) )
+        if status == 1:
+            # self.new_backups is written to Backups table if backup job succeds
+            c.executemany( ('INSERT INTO Backups ('
+                           +'abs_path, mod_date, sha512, job_id'
+                           +') VALUES (?, ?, ?, ?)'), self.new_backups)
+        conn.commit()
+        conn.close()
+
     def clean_tmp(self):
         pass

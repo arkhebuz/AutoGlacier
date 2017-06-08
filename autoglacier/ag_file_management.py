@@ -19,7 +19,7 @@ def register_file_list(argparse_args):
     fm = FileManager(CONFIG, argparse_args.database)
     fm.read_file_list(argparse_args.filelist)
     
-    #~ fm._register_files()
+    fm.register_files()
     
     #~ dat = sqlite3.connect(argparse_args.database)
     #~ df = pd.DataFrame.from_records(dat, index=None, exclude=None, columns=None, coerce_float=False, nrows=None)
@@ -30,7 +30,7 @@ def register_file_list(argparse_args):
 
 
 class FileManager(object):
-    ''' some prototype '''
+    ''' Registers/deregisters paths in AutoGlacier database '''
     def __init__(self, CONFIG, database_path):
         self.files = []
         self.CONFIG = CONFIG
@@ -43,22 +43,27 @@ class FileManager(object):
             self.files = self.files + list(glob.iglob(adir))
             
     def read_file_list(self, list_path):
+        """ Reads list of files from text file, one absolute path per line
+        
+        `list_path` - absolute path to file containing path list"""
         with open(list_path, 'r') as f:
             for line in f.readlines():
                 self.files.append(line.strip())
     
-    def _register_files(self):
+    def register_files(self):
+        """ Registers files stored in FileManager.files list
+        
+        FileManager.files will be prepared by execution of following methods:
+            `FileManager.read_file_list`
+        
+        The effect of method execution is additive.
+        """
         conn = sqlite3.connect(self.DATABASE_PATH)
         c = conn.cursor()
         
         values2d = []
         for afile in self.files:
             values2d.append((os.path.abspath(afile), self.TIMESTAMP, 1, 1))
-            #~ modtime = os.path.getmtime(afile)
-            # calculate hash - memory inefficient method
-            #~ with open(afile, 'rb') as f:
-                #~ filehash = hashlib.sha512(f.read()).hexdigest()
-            #~ SHA512=filehash
         
         c.executemany( ('INSERT OR IGNORE INTO Files ('
                        +'abs_path, registration_date, file_exists, registered'

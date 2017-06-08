@@ -3,6 +3,10 @@ import os
 
 
 
+def manage_configs(arpgaprse_args):
+    pass
+
+
 def read_config_from_db(database_path, set_id=0):
     conn = sqlite3.connect(database_path)
     conn.row_factory = sqlite3.Row
@@ -19,8 +23,8 @@ def __remove_database_dir_with_contents(CONFIG):
     import shutil
     shutil.rmtree(CONFIG['ag_database_dir'])
 
-def __create_test_backup_files_and_dirs():
-    root_test_dir = os.path.join(os.path.expanduser('~'), '.autoglacier/__test_backup_structure')
+def _create_test_backup_files_and_dirs(parent_dir):
+    root_test_dir = os.path.join(parent_dir, '__test_backup_structure')
     os.mkdir(root_test_dir)
     
     dir1 = os.path.join(root_test_dir, 'dir1')
@@ -32,13 +36,14 @@ def __create_test_backup_files_and_dirs():
             with open(os.path.join(adir, char), 'w') as f:
                 f.write(char*10**5)
     
-    file_list_loc = os.path.join(os.path.expanduser('~'), '.autoglacier/__test_backup_file_list.txt')
+    file_list_loc = os.path.join(root_test_dir, '__test_backup_file_list.txt')
     paths = [root_test_dir+'/dir1/'+char for char in 'a10']
     paths += [root_test_dir+'/dir2/'+char for char in 'a10']
     with open(file_list_loc, 'w') as f:
         for p in paths:
             f.write(p)
             f.write('\n')
+    return file_list_loc
 
 def download_archive():
     # TODO
@@ -46,6 +51,6 @@ def download_archive():
 
 
 
-if __name__ = "__main__":
+if __name__ == "__main__":
     pass
     #~ __create_test_backup_files_and_dirs()

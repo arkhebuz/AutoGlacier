@@ -38,11 +38,11 @@ def initialize_ag(argparse_args):
     except FileExistsError:
         pass
     
-    if argparse_args.gen_keys:
+    if argparse_args.genkeys:
         public = os.path.join(database_dir, 'AG_RSA_public.pem')
         private = os.path.join(database_dir, 'AG_RSA_private.pem')
-        public_key = gen_RSA_keys(public, private)
-        CONFIG['public_key'] = str(public_key)
+        public_key = gen_RSA_keys(private, public)
+        CONFIG['public_key'] = public_key.decode('utf8')
 
     initiate_databse(CONFIG)
     
@@ -54,31 +54,13 @@ def initialize_ag(argparse_args):
     
     # TODO: GTEU verification on an empty database
 
-def insert_configuration_set(CONFIG, db_cursor):
-    ''' 
-    CONFIG - configuration set in JSON representation
-    db_cursor - open AC database cursor'''
-    try:
-        values = (0, 
-                  CONFIG['region_name'], 
-                  CONFIG['vault_name'], 
-                  CONFIG['public_key'], 
-                  CONFIG['compression_algorithm'], 
-                  CONFIG['temporary_dir'], 
-                  CONFIG['ag_database_dir'], 
-                  CONFIG['aws_access_key_id'], 
-                  CONFIG['aws_secret_access_key'])
-    except KeyError:
-        print('pls fix conf')
-        raise
-        
-    db_cursor.execute( ('INSERT INTO ConfigurationSets ('
-                       +'set_id, region_name, vault_name, public_key, compression_algorithm, '
-                       +'temporary_dir, ag_database_dir, aws_access_key_id, aws_secret_access_key'
-                       +') VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'), values)
 
 def initiate_databse(CONFIG):
-    """ Initiates Database with CONFIG in config table """
+    """ Initiates empty database with `CONFIG` in ConfigurationSets table 
+    
+    Database structure is not altered in other places of the program.
+    This function code can serve as a database structure specification.
+    """
     ag_database = os.path.join(CONFIG['ag_database_dir'], 'AG_database.sqlite')
     if not os.path.isfile(ag_database):
         conn = sqlite3.connect(ag_database)
@@ -126,8 +108,33 @@ def initiate_databse(CONFIG):
         conn.commit()
         conn.close()
     else:
-        raise RuntimeError
+        il = logging.getLogger("InitLogger")
+        il.warning("DATABASE FILE ALREADY EXISTS UNDER %s", ag_database)
         # TODO: rethink this
+
+def insert_configuration_set(CONFIG, db_cursor):
+    ''' 
+    CONFIG - configuration set in JSON representation
+    db_cursor - open AC database cursor'''
+    try:
+        values = (0, 
+                  CONFIG['region_name'], 
+                  CONFIG['vault_name'], 
+                  CONFIG['public_key'], 
+                  CONFIG['compression_algorithm'], 
+                  CONFIG['temporary_dir'], 
+                  CONFIG['ag_database_dir'], 
+                  CONFIG['aws_access_key_id'], 
+                  CONFIG['aws_secret_access_key'])
+    except KeyError:
+        print('pls fix conf')
+        raise
+        
+    db_cursor.execute( ('INSERT INTO ConfigurationSets ('
+                       +'set_id, region_name, vault_name, public_key, compression_algorithm, '
+                       +'temporary_dir, ag_database_dir, aws_access_key_id, aws_secret_access_key'
+                       +') VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'), values)
+
 
 def gen_RSA_keys(PRIV_RSA_KEY_PATH, PUBL_RSA_KEY_PATH, RSA_PASSPHRASE=None):
     ''' Helper function - RSA keys generation '''

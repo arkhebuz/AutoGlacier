@@ -8,3 +8,6 @@ __test_backup_structure
 
 *.pem
 *.bin
+
+
+__keys.json
