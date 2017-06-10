@@ -6,10 +6,10 @@ import argparse
 import logging
 import os
 
-from autoglacier.ag_init import initialize_ag
-from autoglacier.ag_jobs import do_backup_job
-from autoglacier.ag_misc import manage_configs
-from autoglacier.ag_file_management import register_file_list
+from autoglacier.init import initialize_ag
+from autoglacier.jobs import do_backup_job
+from autoglacier.misc import manage_configs
+from autoglacier.file_management import register_file_list
 
 
 DEFAULT_DATABASE_PATH = os.path.join(os.path.expanduser('~'), '.autoglacier/AG_database.sqlite')

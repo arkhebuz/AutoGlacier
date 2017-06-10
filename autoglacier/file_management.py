@@ -11,31 +11,27 @@ import sqlite3
 
 import pandas as pd # REQUIRES SQLALCHEMY for direct SQLite read?
 
-from autoglacier.ag_misc import read_config_from_db
+from autoglacier.database import AGDatabase
 
 
 def register_file_list(argparse_args):
-    CONFIG = read_config_from_db(argparse_args.database)
-    fm = FileManager(CONFIG, argparse_args.database)
+    DB = AGDatabase(argparse_args.database)
+    DB.connect()
+    fm = FileManager(DB, argparse_args.configid)
     fm.read_file_list(argparse_args.filelist)
-    
     fm.register_files()
+    DB.close()
     
-    #~ dat = sqlite3.connect(argparse_args.database)
-    #~ df = pd.DataFrame.from_records(dat, index=None, exclude=None, columns=None, coerce_float=False, nrows=None)
-    # df = pd.read_sql_query("select * from Files;", dat)
-    #~ print(df)
-    #~ dat.close()
-
 
 
 class FileManager(object):
     ''' Registers/deregisters paths in AutoGlacier database '''
-    def __init__(self, CONFIG, database_path):
-        self.files = []
-        self.CONFIG = CONFIG
+    def __init__(self, ag_database, configuration_set_id=0):
+        self.DB = ag_database
+        self.CONFIG = self.DB.read_config_from_db(set_id=configuration_set_id)
+        self.DATABASE_PATH = self.DB.database_path
         self.TIMESTAMP = time.time()
-        self.DATABASE_PATH = database_path
+        self.files = []
 
     def _glob_dirs(self, list_of_globs):
         # TODO: nested dirs? - cannot hash folder
@@ -58,17 +54,11 @@ class FileManager(object):
         
         The effect of method execution is additive.
         """
-        conn = sqlite3.connect(self.DATABASE_PATH)
-        c = conn.cursor()
-        
         values2d = []
         for afile in self.files:
             values2d.append((os.path.abspath(afile), self.TIMESTAMP, 1, 1))
         
-        c.executemany( ('INSERT OR IGNORE INTO Files ('
-                       +'abs_path, registration_date, file_exists, registered'
-                       +') VALUES (?, ?, ?, ?)'), values2d)
-        conn.commit()
-        conn.close()
+        sql = 'INSERT OR IGNORE INTO Files (abs_path, registration_date, file_exists, registered) VALUES (?, ?, ?, ?)'
+        self.DB.change_many(sql, values2d)
 
 

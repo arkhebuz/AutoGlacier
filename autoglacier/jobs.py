@@ -19,75 +19,63 @@ from Crypto.PublicKey import RSA
 from Crypto.Random import get_random_bytes
 from Crypto.Cipher import AES, PKCS1_OAEP
 
-from autoglacier.ag_misc import read_config_from_db
+from autoglacier.database import AGDatabase
 
 
 
 def do_backup_job(argparse_args):
-    CONFIG = read_config_from_db(argparse_args.database, set_id=argparse_args.configid)
-    
-    # TODO: error handling (make GTEU a context manager?)
-    bj = BackupJob(CONFIG, argparse_args.database, 'asdf')
-    bj.get_files_from_db()
+    DB = AGDatabase(argparse_args.database)
+    DB.connect()
+    bj = BackupJob(DB, 'asdf')
+    bj.checkout_files()
     bj.archive_files()
-    bj.encrypt_files()
-    #~ bj.glacier_upload()
-    #~ bj.clean_tmp()
+    bj.encrypt_archive()
+    bj.upload_into_glacier()
+    bj.clean_tmp()
+    DB.close()
 
 
 class BackupJob(object):
     """ Checks which files should be backed up, then backs them up """
     # Formats supported by stdlib's tarfile:
-    _comp = {'gzip': [':gz', '.tar.gz'],
-             'lzma': [':xz', '.tar.xz'],
-             'bzip2': [':bz2', '.tar.bz2'],
-             'none': ['', '.tar'],
-             '': ['', '.tar']}
+    _compr = {'gzip': [':gz', '.tar.gz'],
+              'lzma': [':xz', '.tar.xz'],
+              'bzip2': [':bz2', '.tar.bz2'],
+              'none': ['', '.tar'],
+              '': ['', '.tar']}
     
-    def __init__(self, CONFIG, database_path, job_description):
+    def __init__(self, ag_database, job_description, configuration_set_id=0):
         self.logger = logging.getLogger("JobLogger")
-        self.CONFIG = CONFIG
-        self.database_path = database_path
+        self.DB = ag_database
+        self.CONFIG = self.DB.read_config_from_db(set_id=configuration_set_id)
         self.description = job_description
         self.timestamp = time.time()
         self.tbd_file_backups = []
         self.backed_files_metadata = []
         
-        try:
-            db_conn = sqlite3.connect(self.database_path)
-            db = db_conn.cursor()
-            db.execute('SELECT max(job_id) FROM BackupJobs')
-        except sqlite3.OperationalError:
-            self.logger.exception( ("Wrong path to database or database structure "
-                                   +"was corrupted (path: %s)"), self.database_path)
-            raise
-        max_id = db.fetchone()[0]
+        max_id = self.DB.fetch_row('SELECT max(job_id) FROM BackupJobs')[0]
         if max_id == None:
             max_id = -1
         self.job_id = max_id+1
         self.logger.info("Running Backup Job on %s, job_id = %s, configuration set %s",
-                         self.database_path, self.job_id, CONFIG['set_id'])
+                         self.DB.database_path, self.job_id, self.CONFIG['set_id'])
         
-        values = (self.job_id, CONFIG['set_id'], self.timestamp, self.description, -1,
-                  "", "", "", "", -1, "")
-        db.execute( ('INSERT INTO BackupJobs ('
-                    +'job_id, configuration_set_id, timestamp, description, archive_size, '
-                    +'archive_checksum, location, response, archive_id, success, '
-                    +'errors_message) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'), values)
-        db_conn.commit()
-        db_conn.close()
+        sql = ('INSERT INTO BackupJobs ('
+              +'job_id, configuration_set_id, timestamp, description, archive_size, '
+              +'archive_checksum, location, response, archive_id, success, '
+              +'errors_message) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+        values = (self.job_id, self.CONFIG['set_id'], self.timestamp, self.description, -1, '', '', '', '', -1, '')
+        self.DB.change(sql, values)
 
-    def get_files_from_db(self):
+    def checkout_files(self):
         """ Checks which registered files should be backed up """
         previous_job_timestamp = self._get_last_successful_job_timestamp()
-        db_conn = sqlite3.connect(self.database_path)
-        db = db_conn.cursor()
         
         # Find registered and backed-up files and check if they were modified since last job
-        db.execute( ('SELECT abs_path FROM Files WHERE abs_path IN '
-                    +'( SELECT Files.abs_path FROM Files JOIN '
-                    +'Backups USING(abs_path) WHERE Files.registered=1 )') )
-        registered_files = [f[0] for f in db.fetchall()]
+        sql = ('SELECT abs_path FROM Files WHERE abs_path IN '
+              +'( SELECT Files.abs_path FROM Files JOIN '
+              +'Backups USING(abs_path) WHERE Files.registered=1 )') 
+        registered_files = [f[0] for f in self.DB.fetch_all(sql)]
         for path in registered_files:
             if os.path.isfile(path):
                 if os.path.getmtime(path) > previous_job_timestamp:
@@ -96,41 +84,36 @@ class BackupJob(object):
                 self.logger.warning("Missing registered file: %s", path)
         
         # Find registered files not backed up yet, ever
-        db.execute( ('SELECT abs_path FROM Files WHERE abs_path NOT IN '
-                    +'( SELECT Files.abs_path FROM Files JOIN '
-                    +'Backups USING(abs_path) WHERE Files.registered=1 )') )
-        files_not_backed_up_ever = [f[0] for f in db.fetchall()]
+        sql = ('SELECT abs_path FROM Files WHERE abs_path NOT IN '
+              +'( SELECT Files.abs_path FROM Files JOIN '
+              +'Backups USING(abs_path) WHERE Files.registered=1 )')
+        files_not_backed_up_ever = [f[0] for f in self.DB.fetch_all(sql)]
         for path in files_not_backed_up_ever:
             if os.path.isfile(path):
                 self.tbd_file_backups.append(path)
             else:
                 self.logger.warning("Missing registered file: %s", path)
         
-        db_conn.commit()
-        db_conn.close()
         self.logger.info("%s files found", len(self.tbd_file_backups) )
         
     def _get_last_successful_job_timestamp(self):
         """ Returns previous successful job timestamp or -1 if there are none """
-        db_conn = sqlite3.connect(self.database_path)
-        db = db_conn.cursor()
         if self.job_id == 0:
             previous_job_timestamp = -1
         else:
-            db.execute('SELECT max(job_id) FROM BackupJobs WHERE job_id < ? AND success=1', (self.job_id,))
-            last_succesfull_job = db.fetchone()[0]
+            sql = 'SELECT max(job_id) FROM BackupJobs WHERE job_id < ? AND success=1'
+            last_succesfull_job = self.DB.fetch_row(sql, (self.job_id,))[0]
             if last_succesfull_job is None:
                 self.logger.debug("All previous jobs failed")
                 previous_job_timestamp = -1
             else:
                 self.logger.debug("Previous succesfull job id = %s", last_succesfull_job)
-                db.execute('SELECT timestamp FROM BackupJobs WHERE job_id=?', (last_succesfull_job,))
-                previous_job_timestamp = db.fetchone()[0]
-        db_conn.close()
+                sql = 'SELECT timestamp FROM BackupJobs WHERE job_id=?'
+                previous_job_timestamp = self.DB.fetch_row(sql, (last_succesfull_job,))[0]
         return previous_job_timestamp
 
     def archive_files(self):
-        flag, extension = self._comp[self.CONFIG['compression_algorithm']]
+        flag, extension = self._compr[self.CONFIG['compression_algorithm']]
         archive_name = 'AG_arch_jid'+str(self.job_id)+'_ts'+str(self.timestamp)+extension
         self.archive = os.path.join(self.CONFIG['temporary_dir'], archive_name)
         
@@ -179,7 +162,7 @@ class BackupJob(object):
     
     # This method could really be something external, invoked by GTEU
     # It may require DB reorganization (i.e. new table: uploaders), however
-    def glacier_upload(self):
+    def upload_into_glacier(self):
         ''' Uploads archive '''
         region_name = self.CONFIG['region_name']
         vault_name = self.CONFIG['vault_name']
@@ -209,17 +192,13 @@ class BackupJob(object):
         archiveId = response['archiveId']
         archsize = os.stat(self.encrypted_archive).st_size
 
-        db_conn = sqlite3.connect(self.database_path)
-        db = db_conn.cursor()
-        db.execute( ('UPDATE BackupJobs SET location=?, archive_size=?, archive_checksum=?, '
-                    +'archive_id=?, response=?, success=? WHERE job_id=?'),
-                   (location, archsize, checksum, archiveId, repr(response), upload_succeed, self.job_id) )
+        sql = ('UPDATE BackupJobs SET location=?, archive_size=?, archive_checksum=?, '
+              +'archive_id=?, response=?, success=? WHERE job_id=?')
+        values = (location, archsize, checksum, archiveId, repr(response), upload_succeed, self.job_id)
+        self.DB.change(sql, values)
         if upload_succeed == 1:
-            db.executemany( ('INSERT INTO Backups '
-                            +'(abs_path, mod_date, sha256, job_id) '
-                            +'VALUES (?, ?, ?, ?) '), self.backed_files_metadata)
-        db_conn.commit()
-        db_conn.close()
+            sql = 'INSERT INTO Backups (abs_path, mod_date, sha256, job_id) VALUES (?, ?, ?, ?)'
+            self.DB.change_many(sql, self.backed_files_metadata)
 
     def clean_tmp(self):
         pass
