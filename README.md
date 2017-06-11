@@ -4,7 +4,12 @@
 
 ```usage: AutoGlacier [-h] {init,job,register,config} ...
 
-AutoGlacier tracks and backs-up small files into Amazon Glacier
+AutoGlacier tracks and backs-up small files into Amazon Glacier.
+Example usage:
+
+    $ autoglacier init ./conf.json --genkeys
+    $ autoglacier register --filelist ~/small_files.lst
+    $ autoglacier job
 
 positional arguments:
   {init,job,register,config}
@@ -21,8 +26,8 @@ back-up a considerable number of small files into cold-storage, i.e. to
 prevent data loss caused by ransomware attack. AutoGlacier keeps track 
 of files: checks if their contents changed, backs them up if so, and notes 
 which version of which file was backed up into which archive and when.
-This information comes very handy as every uploaded backup is 
-AES-encrypted LZMA-compressed tar archive
+This information comes very handy as every uploaded backup is an
+AES-encrypted LZMA-compressed tar archive.
 
 The script is aimed at simplicity, portability and extendability, featuring
 file tracking, local metadata logging, data compression, encryption and 
@@ -35,7 +40,7 @@ file tracking, local metadata logging, data compression, encryption and
 ```usage: AutoGlacier init [-h] [--genkeys] config_file
 
 positional arguments:
-  config_file  Config file in JSON format
+  config_file  path to config file in JSON format
 
 optional arguments:
   -h, --help   show this help message and exit
@@ -77,7 +82,7 @@ AutoGlacier backup job is launched against a database and proceeds in an
 automated fashion. AutoGlacier checks if any new files were registered 
 and if any old registered files were changed, then gathers them, packs,
 encrypts and uploads into Glacier using credentials from a given 
-configuration set (default 0).
+configuration set (default 0). Jobs can be safely cron-automated.
 ```
 
 

@@ -25,22 +25,29 @@ def _construct_argparse_parser(return_all_parsers=0):
     Returns:
         argparse.ArgumentParser instance
     """
-    
+    autoglacier_desc  = """
+AutoGlacier tracks and backs-up small files into Amazon Glacier.
+Example usage:
+
+    $ autoglacier init ./conf.json --genkeys
+    $ autoglacier register --filelist ~/small_files.lst
+    $ autoglacier job
+"""
     autoglacier_epoligdesc = """
 This Amazon Glacier backup script is aimed at the case when one needs to 
 back-up a considerable number of small files into cold-storage, i.e. to 
 prevent data loss caused by ransomware attack. AutoGlacier keeps track 
 of files: checks if their contents changed, backs them up if so, and notes 
 which version of which file was backed up into which archive and when.
-This information comes very handy as every uploaded backup is 
-AES-encrypted LZMA-compressed tar archive
+This information comes very handy as every uploaded backup is an
+AES-encrypted LZMA-compressed tar archive.
 
 The script is aimed at simplicity, portability and extendability, featuring
 file tracking, local metadata logging, data compression, encryption and 
 (some) file-picking functionality. Alpha at the moment (although it works!).
 """
     parser = argparse.ArgumentParser(prog='AutoGlacier', 
-                                     description="AutoGlacier tracks and backs-up small files into Amazon Glacier",
+                                     description=autoglacier_desc,
                                      epilog=autoglacier_epoligdesc,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     subparsers = parser.add_subparsers()
@@ -70,7 +77,7 @@ the following parameters:
                                  epilog=init_epidesc,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     init.set_defaults(func=initialize_ag)
-    init.add_argument('config_file', help="Config file in JSON format")
+    init.add_argument('config_file', help="path to config file in JSON format")
     init.add_argument('--genkeys', help="generate RSA key pair", action='store_true')
     #~ init.add_argument('--autotest', help="", action='store_true')    # This should fire up some tests from the suite
 
@@ -79,7 +86,7 @@ AutoGlacier backup job is launched against a database and proceeds in an
 automated fashion. AutoGlacier checks if any new files were registered 
 and if any old registered files were changed, then gathers them, packs,
 encrypts and uploads into Glacier using credentials from a given 
-configuration set (default 0).
+configuration set (default 0). Jobs can be safely cron-automated.
 """
     backup = subparsers.add_parser('job', help="Do backup Job - gathers and uploads files into Glacier",
                                    epilog=job_epidesc,
