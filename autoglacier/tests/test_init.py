@@ -38,6 +38,7 @@ class TemplateSetupTeardown(object):
     def setup_class(cls):
         # Startup config
         cls.database_dir = os.path.join(os.path.expanduser('~'), '.autoglacier/__TESTS')
+        cls.database_path = os.path.join(cls.database_dir, 'AG_database.sqlite')
         tmp_dir = os.path.join(cls.database_dir, 'TMP')
         try:
             os.makedirs(tmp_dir)
@@ -67,16 +68,17 @@ class TemplateSetupTeardown(object):
 
 
 class TestAGDatabase(TemplateSetupTeardown):
+    """ Tests directly autoglacier.database.AGDatabase """
     with open("__keys.json", 'r') as f:
         keys = json.load(f)
     
     def test_operation_protection_on_disconnected_database(self):
-        DB = AGDatabase(os.path.join(self.database_dir, 'AG_database.sqlite'))
+        DB = AGDatabase(self.database_path)
         with pytest.raises(AGDatabaseError):
             DB.change('Select * from Jobs')
         
     def test_database_initialization(self):
-        DB = AGDatabase(os.path.join(self.database_dir, 'AG_database.sqlite'))
+        DB = AGDatabase(self.database_path)
         DB.initialize(self._cnf)
         with pytest.raises(AGDatabaseError):
             CONFIG = DB.read_config_from_db(set_id=0)
@@ -85,6 +87,19 @@ class TestAGDatabase(TemplateSetupTeardown):
         CONFIG = DB.read_config_from_db(set_id=0)
         for k in self._cnf.keys():
             assert CONFIG[k] == self._cnf[k]
+        os.remove(self.database_path)
+        
+    def test_multiple_close_calls(self):
+        DB = AGDatabase(self.database_path)
+        DB.initialize(self._cnf)
+        # Should rise no errors
+        DB.close()
+        DB.connect()
+        DB.close()
+        DB.close()
+        DB.close()
+        del DB
+        os.remove(self.database_path)
 
 
 
@@ -99,6 +114,8 @@ class TestsFunctional(TemplateSetupTeardown):
     injection. However it would require substantial effort at the very 
     early stage of development when things are mostly in flux, so a fixed 
     sequence of rather functional than strictly unit tests is used for now.
+    It still has the benefit of automated execution and can better pin down
+    a faillure location.
     
     Note that the test order below roughly mimics how autoglacier would
     be used from CLI. """
@@ -159,13 +176,12 @@ class TestsFunctional(TemplateSetupTeardown):
                 assert p in paths2
         
     def test_backup_job_encrypt_archive(self):
-        self.__class__.BJ.archive_files()
+        self.__class__.BJ.encrypt_archive()
+        assert os.path.isfile(self.__class__.BJ.encrypted_archive)
         
     def test_archive_decryption(self):
         pass
         
     def test_backup_job_upload_into_glacier(self):
-        database_path = os.path.join(self.database_dir, 'AG_database.sqlite')
-        parser = _construct_argparse_parser()
-        args = parser.parse_args(['job', '--database', database_path])
-        #~ args.func(args)
+        #~ self.__class__.BJ.upload_into_glacier()
+        pass
