@@ -1,3 +1,8 @@
+# pycryptodome package
+from Crypto.PublicKey import RSA
+from Crypto.Random import get_random_bytes
+from Crypto.Cipher import AES, PKCS1_OAEP
+
 
 def manage_configs(arpgaprse_args):
     pass
@@ -27,4 +32,3 @@ def decrypt_archive(encrypted_file, PRIV_RSA_KEY_PATH, output_file='decrypted.ta
 
 if __name__ == "__main__":
     pass
-    #~ __create_test_backup_files_and_dirs()

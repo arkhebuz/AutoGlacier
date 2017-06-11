@@ -1,20 +1,10 @@
-""" AG - AutoGlacier
-
-# program installation initialization
-`autoglacier init /path/to/cfg.file --gen-keys [--autotest]`
-
+""" 
+AutoGlacier database/directories/RSA keys initialization
 """
-import argparse
 import logging
-import sqlite3
-import tarfile
-import hashlib
 import json
-import glob
-import time
 import os
 # Beyond stdlib
-import boto3
 # pycryptodome package
 from Crypto.PublicKey import RSA
 from Crypto.Random import get_random_bytes
@@ -67,5 +57,4 @@ def gen_RSA_keys(PRIV_RSA_KEY_PATH, PUBL_RSA_KEY_PATH, RSA_PASSPHRASE=None):
     with open(PUBL_RSA_KEY_PATH, 'wb') as f:
         f.write(public_key_str)
     return public_key_str
-
 

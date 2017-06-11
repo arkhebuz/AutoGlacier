@@ -27,12 +27,20 @@ class AGDatabase(object):
         self._logger = logging.getLogger("DatabaseLogger")
         self._db_cursor = self._ConnectionStub()
         self._db_connection = self._ConnectionStub()
+    
+    def __enter__(self):
+        self.connect()
+        return self
+        
+    def __exit__(self, *args):
+        self.close()
 
     def connect(self):
         self._db_connection = sqlite3.connect(self.database_path)
         self._db_cursor = self._db_connection.cursor()
         try:
-            #~ self._db_cursor.execute('SELECT job_id FROM BackupJobs')
+            # TODO: better checks
+            self._db_cursor.execute('SELECT job_id FROM BackupJobs')
             self._db_cursor.execute('SELECT abs_path FROM Backups')
             self._db_cursor.execute('SELECT abs_path FROM Files')
         except sqlite3.OperationalError:
@@ -95,7 +103,7 @@ class AGDatabase(object):
             self._db_cursor = self._ConnectionStub()
             self._db_connection = self._ConnectionStub()
         else:
-            self._logger.warning("DATABASE FILE ALREADY EXISTS UNDER %s", self.database_path)
+            self._logger.warning("DATABASE FILE ALREADY EXISTS UNDER %s, ABORTING INITIALIZATION", self.database_path)
             # TODO: rethink this
 
     def insert_configuration_set(self, config):

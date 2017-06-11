@@ -1,11 +1,5 @@
 """
-# running a job
-`autoglacier job --database=/path/to/datgabase.sqlite --config_id=0`
-
-database location is the only information really required.
-default config ID is 0
-
-!deleted files would be detected HERE!
+Autoglacier Backup Jobs
 """
 import logging
 import sqlite3
@@ -24,15 +18,9 @@ from autoglacier.database import AGDatabase
 
 
 def do_backup_job(argparse_args):
-    DB = AGDatabase(argparse_args.database)
-    DB.connect()
-    bj = BackupJob(DB, 'asdf')
-    bj.checkout_files()
-    bj.archive_files()
-    bj.encrypt_archive()
-    bj.upload_into_glacier()
-    bj.clean_tmp()
-    DB.close()
+    with AGDatabase(argparse_args.database) as DB:
+        bj = BackupJob(DB, 'asdf', configuration_set_id=argparse_args.configid)
+        bj.run()
 
 
 class BackupJob(object):
@@ -66,35 +54,49 @@ class BackupJob(object):
               +'errors_message) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
         values = (self.job_id, self.CONFIG['set_id'], self.timestamp, self.description, -1, '', '', '', '', -1, '')
         self.DB.change(sql, values)
+        
+    def run(self):
+        self.checkout_files()
+        self.archive_files()
+        self.encrypt_archive()
+        self.upload_into_glacier()
+        self.clean_tmp()
+    
+    def _checkout_missing_files(self):
+        ''' Check if any registered files are missing, and deregisters them'''
+        sql = 'SELECT abs_path FROM Files WHERE registered=1'
+        all_registered_files = self.DB.fetch_all(sql)
+        for f in all_registered_files:
+            f = f[0]
+            if not os.path.isfile(f):
+                self.logger.warning("Missing registered file: %s, deregistering", f)
+                sql = 'UPDATE Files SET registered=0, file_exists=0 WHERE abs_path=?'
+                self.DB.change(sql, (f,))
 
     def checkout_files(self):
         """ Checks which registered files should be backed up """
-        previous_job_timestamp = self._get_last_successful_job_timestamp()
-        
-        # Find registered and backed-up files and check if they were modified since last job
-        sql = ('SELECT abs_path FROM Files WHERE abs_path IN '
-              +'( SELECT Files.abs_path FROM Files JOIN '
-              +'Backups USING(abs_path) WHERE Files.registered=1 )') 
-        registered_files = [f[0] for f in self.DB.fetch_all(sql)]
-        for path in registered_files:
-            if os.path.isfile(path):
-                if os.path.getmtime(path) > previous_job_timestamp:
-                    self.tbd_file_backups.append(path) 
-            else:
-                self.logger.warning("Missing registered file: %s", path)
+        self._checkout_missing_files()
         
         # Find registered files not backed up yet, ever
         sql = ('SELECT abs_path FROM Files WHERE abs_path NOT IN '
               +'( SELECT Files.abs_path FROM Files JOIN '
               +'Backups USING(abs_path) WHERE Files.registered=1 )')
-        files_not_backed_up_ever = [f[0] for f in self.DB.fetch_all(sql)]
+        files_not_backed_up_ever = self.DB.fetch_all(sql)
         for path in files_not_backed_up_ever:
-            if os.path.isfile(path):
-                self.tbd_file_backups.append(path)
-            else:
-                self.logger.warning("Missing registered file: %s", path)
+            self.tbd_file_backups.append(path[0])
+        
+        # Find registered and backed-up files and check if they were modified since last job
+        previous_job_timestamp = self._get_last_successful_job_timestamp()
+        sql = ('SELECT abs_path FROM Files WHERE abs_path IN '
+              +'( SELECT Files.abs_path FROM Files JOIN '
+              +'Backups USING(abs_path) WHERE Files.registered=1 )') 
+        registered_files = self.DB.fetch_all(sql)
+        for path in registered_files:
+            if os.path.getmtime(path[0]) > previous_job_timestamp:
+                self.tbd_file_backups.append(path[0]) 
         
         self.logger.info("%s files found", len(self.tbd_file_backups) )
+        # TODO: halt the job when there are no files to be backed up now
         
     def _get_last_successful_job_timestamp(self):
         """ Returns previous successful job timestamp or -1 if there are none """
@@ -160,7 +162,7 @@ class BackupJob(object):
         """ description should fit within 1024 ascii chars """
         pass
     
-    # This method could really be something external, invoked by GTEU
+    # This method could really be something external, invoked by BackupJob
     # It may require DB reorganization (i.e. new table: uploaders), however
     def upload_into_glacier(self):
         ''' Uploads archive '''
@@ -201,4 +203,6 @@ class BackupJob(object):
             self.DB.change_many(sql, self.backed_files_metadata)
 
     def clean_tmp(self):
+        # delete self.archive
+        # delete self.encrypted_archive
         pass
