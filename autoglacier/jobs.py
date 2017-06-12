@@ -56,11 +56,14 @@ class BackupJob(object):
         self.DB.change(sql, values)
         
     def run(self):
-        self.checkout_files()
-        self.archive_files()
-        self.encrypt_archive()
-        self.upload_into_glacier()
-        self.clean_tmp()
+        N = self.checkout_files()
+        if N > 0:
+            self.archive_files()
+            self.encrypt_archive()
+            self.upload_into_glacier()
+            self.clean_tmp()
+        else:
+            self.logger.info("No files meeting backup criteria found, exiting")
     
     def _checkout_missing_files(self):
         ''' Check if any registered files are missing, and deregisters them'''
@@ -95,8 +98,9 @@ class BackupJob(object):
             if os.path.getmtime(path[0]) > previous_job_timestamp:
                 self.tbd_file_backups.append(path[0]) 
         
-        self.logger.info("%s files found", len(self.tbd_file_backups) )
-        # TODO: halt the job when there are no files to be backed up now
+        number_of_files = len(self.tbd_file_backups)
+        self.logger.info("%s files found",  number_of_files)
+        return number_of_files
         
     def _get_last_successful_job_timestamp(self):
         """ Returns previous successful job timestamp or -1 if there are none """
