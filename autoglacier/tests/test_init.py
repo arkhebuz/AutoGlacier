@@ -72,6 +72,10 @@ class TestAGDatabase(TemplateSetupTeardown):
     with open("__keys.json", 'r') as f:
         keys = json.load(f)
     
+    def teardown_method(self, method):
+        if os.path.isfile(self.database_path):
+            os.remove(self.database_path)
+    
     def test_operation_protection_on_disconnected_database(self):
         DB = AGDatabase(self.database_path)
         with pytest.raises(AGDatabaseError):
@@ -87,7 +91,6 @@ class TestAGDatabase(TemplateSetupTeardown):
         CONFIG = DB.read_config_from_db(set_id=0)
         for k in self._cnf.keys():
             assert CONFIG[k] == self._cnf[k]
-        os.remove(self.database_path)
         
     def test_multiple_close_calls(self):
         DB = AGDatabase(self.database_path)
@@ -99,8 +102,65 @@ class TestAGDatabase(TemplateSetupTeardown):
         DB.close()
         DB.close()
         del DB
-        os.remove(self.database_path)
+    
+    def test_writing_to_Files(self):
+        DB = AGDatabase(self.database_path)
+        DB.initialize(self._cnf)
+        with DB:
+            v = ('abs', 1, 0, 1)
+            DB.change('INSERT INTO Files (abs_path, registration_date, file_exists, registered) VALUES (?,?,?,?)', v)
+            
+        with AGDatabase(self.database_path) as DB:
+            row = DB.fetch_row('SELECT * FROM Files WHERE abs_path=?', (v[0],))
+            for i, val in enumerate(row):
+                assert v[i] == val
 
+    def test_writing_two_identical_abs_path_to_Files(self):
+        DB = AGDatabase(self.database_path)
+        DB.initialize(self._cnf)
+        with DB:
+            v = ('abs', 1, 0, 1)
+            DB.change('INSERT INTO Files (abs_path, registration_date, file_exists, registered) VALUES (?,?,?,?)', v)
+            import sqlite3
+            with pytest.raises(sqlite3.IntegrityError):
+                DB.change('INSERT INTO Files (abs_path, registration_date, file_exists, registered) VALUES (?,?,?,?)', v)
+        
+    def test_writing_to_Backups(self):
+        DB = AGDatabase(self.database_path)
+        DB.initialize(self._cnf)
+        with DB:
+            vs = [('abs', 1, 'abc', 1),
+                  ('abs', 2, 'ccc', 2),
+                  ('abs', 3, 'ddd', 3),]
+            DB.change_many('INSERT INTO Backups (abs_path, mod_date, sha256, job_id) VALUES (?,?,?,?)', vs)
+            
+        with AGDatabase(self.database_path) as DB:
+            rows = DB.fetch_all('SELECT * FROM Backups')
+            for written, read in zip(vs, rows):
+                for v1, v2 in zip(written, read):
+                    assert v1 == v2
+
+    def test_writing_duplicates_to_Backups(self):
+        DB = AGDatabase(self.database_path)
+        DB.initialize(self._cnf)
+        with DB:
+            vs = [('abs', 1, 'abc', 1),
+                  ('abs', 1, 'abc', 1),
+                  ('abs', 1, 'abc', 1),]
+            import sqlite3
+            with pytest.raises(sqlite3.IntegrityError):
+                DB.change_many('INSERT INTO Backups (abs_path, mod_date, sha256, job_id) VALUES (?,?,?,?)', vs)
+
+    def test_writing_nonsense_to_Backups(self):
+        DB = AGDatabase(self.database_path)
+        DB.initialize(self._cnf)
+        with DB:
+            vs = [('abs', 1, 'abc', 1),
+                  ('abs', 1, 'cba', 1),
+                  ('abs', 3, 'abc', 1),]
+            import sqlite3
+            with pytest.raises(sqlite3.IntegrityError):
+                DB.change_many('INSERT INTO Backups (abs_path, mod_date, sha256, job_id) VALUES (?,?,?,?)', vs)
 
 
 @pytest.mark.incremental
@@ -183,5 +243,5 @@ class TestsFunctional(TemplateSetupTeardown):
         pass
         
     def test_backup_job_upload_into_glacier(self):
-        #~ self.__class__.BJ.upload_into_glacier()
+        self.__class__.BJ.upload_into_glacier()
         pass

@@ -42,9 +42,9 @@ which version of which file was backed up into which archive and when.
 This information comes very handy as every uploaded backup is an
 AES-encrypted LZMA-compressed tar archive.
 
-The script is aimed at simplicity, portability and extendability, featuring
-file tracking, local metadata logging, data compression, encryption and 
-(some) file-picking functionality. Alpha at the moment (although it works!).
+The tool is aimed at simplicity, portability and extendability, featuring
+file changes tracking, local metadata logging, data compression, encryption
+and (some) file-picking functionality. Alpha at the moment (although it works!).
 """
     parser = argparse.ArgumentParser(prog='AutoGlacier', 
                                      description=autoglacier_desc,
@@ -55,10 +55,10 @@ file tracking, local metadata logging, data compression, encryption and
     init_epidesc = """
 The init command creates database directory, set-ups the required local
 SQLite database and saves initial config into it. The initial config 
-will be always written to the database with id=0. If --genkeys flag 
-is activated an RSA key pair will be generated (no passphrase) and 
+will be always written to the database with set_id=0. If --genkeys flag 
+is activated an RSA key pair will be generated (no passphrase!) and 
 saved as plain files in the database directory, the public key will
-be also saved in the configuration set ID=0.
+be also saved in the configuration set_id=0.
 
 The config_file should be a proper JSON file storing 
 the following parameters:
@@ -80,7 +80,21 @@ the following parameters:
     init.add_argument('config_file', help="path to config file in JSON format")
     init.add_argument('--genkeys', help="generate RSA key pair", action='store_true')
     #~ init.add_argument('--autotest', help="", action='store_true')    # This should fire up some tests from the suite
-
+    
+    register_epidesc = """
+Register registers files in the database, or more precisely speaking,
+absolute paths to files. AutoGlacier stores no information about file 
+contents aside from SHA256 hash, however currently it determines if 
+the file has changed and backup is needed from the modification time.
+"""
+    register = subparsers.add_parser('register', help="Register files in AutoGlacier database",
+                                     epilog=register_epidesc,
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    register.set_defaults(func=register_file_list)
+    register.add_argument('--database', help="path to AG database", default=DEFAULT_DATABASE_PATH)
+    register.add_argument('--configid', help="configuration set ID", default=DEFAULT_CONFIG_ID)
+    register.add_argument('--filelist', help="read files from text file, one absolute path per line")
+    
     job_epidesc = """
 AutoGlacier backup job is launched against a database and proceeds in an
 automated fashion. AutoGlacier checks if any new files were registered 
@@ -96,15 +110,9 @@ configuration set (default 0). Jobs can be safely cron-automated.
     #~ backup.add_argument('--description', help="", default=)
     backup.set_defaults(func=do_backup_job)
     
-    register = subparsers.add_parser('register', help="Register files in AutoGlacier database")
-    register.set_defaults(func=register_file_list)
-    register.add_argument('--database', help="path to AG database", default=DEFAULT_DATABASE_PATH)
-    register.add_argument('--configid', help="configuration set ID", default=DEFAULT_CONFIG_ID)
-    register.add_argument('--filelist', help="read files from text file, one absolute path per line")
-    
     config = subparsers.add_parser('config', help="Show/add/delete AutoGlacier configuration sets")
     config.set_defaults(func=manage_configs)
-    config.add_argument('--show', help="show existing configs", action='store_true')
+    config.add_argument('--show', help="show existing configs", action='store_true', default=False)
 
     #~ download = subparsers.add_parser('download', help="Download archived files")
     #~ download.set_defaults(func=)
@@ -112,7 +120,7 @@ configuration set (default 0). Jobs can be safely cron-automated.
     #~ download.add_argument('--privkey', help="private key (for decryption)")
 
     if return_all_parsers:
-        return parser, init, backup, register, config
+        return parser, init, register, backup, config
     else:
         return parser
 

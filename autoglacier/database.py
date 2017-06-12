@@ -70,7 +70,8 @@ class AGDatabase(object):
                        +'abs_path       TEXT NOT NULL, '
                        +'mod_date       INT NOT NULL, '
                        +'sha256         TEXT NOT NULL, '
-                       +'job_id         INT NOT NULL)') )
+                       +'job_id         INT NOT NULL, '
+                       +'unique (abs_path, mod_date, sha256, job_id) )') )
             
             c.execute( ('CREATE TABLE BackupJobs ('
                        +'job_id                 INT PRIMARY KEY NOT NULL, '
@@ -121,7 +122,7 @@ class AGDatabase(object):
                       config['aws_access_key_id'], 
                       config['aws_secret_access_key'])
         except KeyError:
-            print('pls fix conf')
+            self._logger.error('pls fix conf')
             raise
             
         self._db_cursor.execute( ('INSERT INTO ConfigurationSets ('

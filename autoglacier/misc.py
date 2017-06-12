@@ -4,8 +4,13 @@ from Crypto.Random import get_random_bytes
 from Crypto.Cipher import AES, PKCS1_OAEP
 
 
-def manage_configs(arpgaprse_args):
-    pass
+def manage_configs(argparse_args):
+    if argparse_args.show:
+        from autoglacier.database import AGDatabase
+        with AGDatabase(argparse_args.database) as DB:
+            config = DB.read_config_from_db(set_id=argparse_args.configid)
+            for k in config.keys():
+                print(k, ' = ', config[k])
 
 
 def download_archive():

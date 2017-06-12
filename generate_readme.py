@@ -17,8 +17,8 @@ template = latex_jinja_env.from_string(readme_template)
 
 sections = ["## AutoGlacier", 
             '### `autoglacier init`', 
-            '### `autoglacier job`', 
             '### `autoglacier register`', 
+            '### `autoglacier job`', 
             '### `autoglacier config`']
 parsers = _construct_argparse_parser(return_all_parsers=1)
 helps = [p.format_help() for p in parsers]

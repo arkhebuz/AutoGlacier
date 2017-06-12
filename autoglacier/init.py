@@ -39,12 +39,7 @@ def initialize_ag(argparse_args):
     database_path = os.path.join(CONFIG['ag_database_dir'], 'AG_database.sqlite')
     DB = AGDatabase(database_path)
     DB.initialize(CONFIG)
-    
-    # Just a handy copy of original config file
-    new_config_json = os.path.join(database_dir, 'CONFIG.json')
-    if not os.path.isfile(new_config_json):
-        with open(new_config_json, 'w') as f:
-            json.dump(CONFIG, f, indent=2)
+
 
 
 def gen_RSA_keys(PRIV_RSA_KEY_PATH, PUBL_RSA_KEY_PATH, RSA_PASSPHRASE=None):

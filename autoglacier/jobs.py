@@ -158,9 +158,9 @@ class BackupJob(object):
             out_file.write(tag)
             out_file.write(ciphertext)
         
-    def _generate_description(sef):
+    def _generate_description(self):
         """ description should fit within 1024 ascii chars """
-        pass
+        self.description = self.description[:1024]
     
     # This method could really be something external, invoked by BackupJob
     # It may require DB reorganization (i.e. new table: uploaders), however
@@ -168,6 +168,7 @@ class BackupJob(object):
         ''' Uploads archive '''
         region_name = self.CONFIG['region_name']
         vault_name = self.CONFIG['vault_name']
+        self._generate_description()
         self.logger.info("Uploading into Glacier, region %s, vault %s", region_name, vault_name)
         
         try:
@@ -203,6 +204,8 @@ class BackupJob(object):
             self.DB.change_many(sql, self.backed_files_metadata)
 
     def clean_tmp(self):
-        # delete self.archive
-        # delete self.encrypted_archive
-        pass
+        if os.path.isfile(self.archive):
+            os.remove(self.archive)
+        if os.path.isfile(self.encrypted_archive):
+            os.remove(self.encrypted_archive)
+
