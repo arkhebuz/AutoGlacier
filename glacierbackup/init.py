@@ -30,6 +30,12 @@ def initialize_ag(argparse_args):
     except FileExistsError:
         pass
     
+    tmp_dir = CONFIG['temporary_dir']
+    try: 
+        os.mkdir(tmp_dir)
+    except FileExistsError:
+        pass
+
     if argparse_args.genkeys:
         public = os.path.join(database_dir, 'GB_RSA_public.pem')
         private = os.path.join(database_dir, 'GB_RSA_private.pem')

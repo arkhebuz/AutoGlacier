@@ -1,6 +1,15 @@
 
 
-## GlacierBackup
+
+# GlacierBackup
+A tool to track small files and back them up into Glacier enabling disaster-recovery document
+ backups at virtually no cost - installable via pip:
+```
+$ pip install glacierbackup
+```
+
+What follows is an overview of a CLI interface.
+
 
 ```usage: GlacierBackup [-h] {init,register,job,config} ...
 

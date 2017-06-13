@@ -12,11 +12,15 @@ from glacierbackup.misc import manage_configs
 from glacierbackup.file_management import register_file_list
 
 
+
+def _print_help_and_exit(argparse_parser):
+    argparse_parser.parser.print_help()
+
 DEFAULT_DATABASE_PATH = os.path.join(os.path.expanduser('~'), '.glacierbackup/GB_database.sqlite')
 DEFAULT_CONFIG_ID = 0
 predefined_args = argparse.Namespace(database=DEFAULT_DATABASE_PATH, 
-                                     configid=DEFAULT_CONFIG_ID)
-
+                                     configid=DEFAULT_CONFIG_ID,
+                                     func=_print_help_and_exit)
 
 
 def _construct_argparse_parser(return_all_parsers=0):
@@ -130,8 +134,10 @@ def main():
                         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
     parser = _construct_argparse_parser()
+    predefined_args.parser = parser
     args = parser.parse_args(namespace=predefined_args)
     args.func(args)
+    return 0
 
 if __name__ == "__main__":
     main()

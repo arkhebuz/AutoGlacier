@@ -1,7 +1,9 @@
 *.pyc
 __pycache__
 .cache
-
+build/
+dist/
+glacierbackup.egg-info/
 
 tmp
 __test_backup_structure
@@ -11,3 +13,5 @@ __test_backup_structure
 
 
 __keys.json
+
+

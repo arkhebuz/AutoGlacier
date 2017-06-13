@@ -18,12 +18,12 @@ setup(
       'License :: OSI Approved :: MIT License',
   ],
   install_requires=[
-      'pycryptodome>=3.4.6'
-      'boto3>=1.4.4'
+      'pycryptodome >= 3.4.6', 
+      'boto3 >= 1.4.4'
   ],
   entry_points={
       'console_scripts': [
-          'glacierbackup=glacierbackup.command:main'
+          'glacierbackup = glacierbackup.command:main'
       ]
   }
 )
