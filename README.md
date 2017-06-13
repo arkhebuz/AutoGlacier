@@ -1,29 +1,29 @@
 
 
-## AutoGlacier
+## GlacierBackup
 
-```usage: AutoGlacier [-h] {init,register,job,config} ...
+```usage: GlacierBackup [-h] {init,register,job,config} ...
 
-AutoGlacier tracks and backs-up small files into Amazon Glacier.
+GlacierBackup tracks and backs-up small files into Amazon Glacier.
 Example usage:
 
-    $ autoglacier init ./conf.json --genkeys
-    $ autoglacier register --filelist ~/small_files.lst
-    $ autoglacier job
+    $ glacierbackup init ./conf.json --genkeys
+    $ glacierbackup register --filelist ~/small_files.lst
+    $ glacierbackup job
 
 positional arguments:
   {init,register,job,config}
-    init                Initialize AutoGlacier configuration and database
-    register            Register files in AutoGlacier database
+    init                Initialize GlacierBackup configuration and database
+    register            Register files in GlacierBackup database
     job                 Do backup Job - gathers and uploads files into Glacier
-    config              Show/add/delete AutoGlacier configuration sets
+    config              Show/add/delete GlacierBackup configuration sets
 
 optional arguments:
   -h, --help            show this help message and exit
 
 This Amazon Glacier backup script is aimed at the case when one needs to 
 back-up a considerable number of small files into cold-storage, i.e. to 
-prevent data loss caused by ransomware attack. AutoGlacier keeps track 
+prevent data loss caused by ransomware attack. GlacierBackup keeps track 
 of files: checks if their contents changed, backs them up if so, and notes 
 which version of which file was backed up into which archive and when.
 This information comes very handy as every uploaded backup is an
@@ -35,9 +35,9 @@ and (some) file-picking functionality. Alpha at the moment (although it works!).
 ```
 
 
-### `autoglacier init`
+### `glacierbackup init`
 
-```usage: AutoGlacier init [-h] [--genkeys] config_file
+```usage: GlacierBackup init [-h] [--genkeys] config_file
 
 positional arguments:
   config_file  path to config file in JSON format
@@ -57,7 +57,7 @@ The config_file should be a proper JSON file storing
 the following parameters:
     {
       "set_id" : 0,
-      "ag_database_dir": database_directory,
+      "database_dir": database_directory,
       "compression_algorithm" : "lzma",
       "temporary_dir": tmp_dir,
       "public_key": "key",
@@ -69,43 +69,43 @@ the following parameters:
 ```
 
 
-### `autoglacier register`
+### `glacierbackup register`
 
-```usage: AutoGlacier register [-h] [--database DATABASE] [--configid CONFIGID] [--filelist FILELIST]
+```usage: GlacierBackup register [-h] [--database DATABASE] [--configid CONFIGID] [--filelist FILELIST]
 
 optional arguments:
   -h, --help           show this help message and exit
-  --database DATABASE  path to AG database
+  --database DATABASE  path to GB database
   --configid CONFIGID  configuration set ID
   --filelist FILELIST  read files from text file, one absolute path per line
 
 Register registers files in the database, or more precisely speaking,
-absolute paths to files. AutoGlacier stores no information about file 
+absolute paths to files. GlacierBackup stores no information about file 
 contents aside from SHA256 hash, however currently it determines if 
 the file has changed and backup is needed from the modification time.
 ```
 
 
-### `autoglacier job`
+### `glacierbackup job`
 
-```usage: AutoGlacier job [-h] [--database DATABASE] [--configid CONFIGID]
+```usage: GlacierBackup job [-h] [--database DATABASE] [--configid CONFIGID]
 
 optional arguments:
   -h, --help           show this help message and exit
-  --database DATABASE  path to AG database
+  --database DATABASE  path to GB database
   --configid CONFIGID  configuration set ID
 
-AutoGlacier backup job is launched against a database and proceeds in an
-automated fashion. AutoGlacier checks if any new files were registered 
+GlacierBackup backup job is launched against a database and proceeds in an
+automated fashion. GlacierBackup checks if any new files were registered 
 and if any old registered files were changed, then gathers them, packs,
 encrypts and uploads into Glacier using credentials from a given 
 configuration set (default 0). Jobs can be safely cron-automated.
 ```
 
 
-### `autoglacier config`
+### `glacierbackup config`
 
-```usage: AutoGlacier config [-h] [--show]
+```usage: GlacierBackup config [-h] [--show]
 
 optional arguments:
   -h, --help  show this help message and exit

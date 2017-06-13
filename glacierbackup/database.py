@@ -4,15 +4,15 @@ import os
 
 
 
-class AGDatabaseError(Exception):
+class GBDatabaseError(Exception):
     pass
 
-class AGDatabase(object):
-    """ Object handling AutoGlacier SQLite database creation and interaction with."""
+class GBDatabase(object):
+    """ Object handling GlacierBackup SQLite database creation and interaction with."""
     class _ConnectionStub(object):
-        """ This class provides a default shim for internal AGDatabase variables 
-        (AGDatabase_db_connection and AGDatabase._db_cursor) allowing for a gentle
-        AGDatabase instance destruction if no database connection was ever 
+        """ This class provides a default shim for internal GBDatabase variables 
+        (GBDatabase_db_connection and GBDatabase._db_cursor) allowing for a gentle
+        GBDatabase instance destruction if no database connection was ever 
         established, or established connection was closed manually.
         """
         def __getattribute__(self, attr):
@@ -20,7 +20,7 @@ class AGDatabase(object):
                 def f(): pass
                 return f
             else:
-                raise AGDatabaseError("Database Connection Not Initialized")
+                raise GBDatabaseError("Database Connection Not Initialized")
         
     def __init__(self, database_path):
         self.database_path = database_path
@@ -93,7 +93,7 @@ class AGDatabase(object):
                        +'public_key             TEXT NOT NULL, '
                        +'compression_algorithm  TEXT NOT NULL, '
                        +'temporary_dir          TEXT NOT NULL, '
-                       +'ag_database_dir        TEXT NOT NULL, '
+                       +'database_dir           TEXT NOT NULL, '
                        +'aws_access_key_id      TEXT, '
                        +'aws_secret_access_key  TEXT, '
                        +'regular_runtime_params TEXT )') )
@@ -110,7 +110,7 @@ class AGDatabase(object):
     def insert_configuration_set(self, config):
         ''' 
         config - configuration set in JSON representation
-        db_cursor - open AG database cursor'''
+        db_cursor - open GB database cursor'''
         try:
             values = (config['set_id'], 
                       config['region_name'], 
@@ -118,7 +118,7 @@ class AGDatabase(object):
                       config['public_key'], 
                       config['compression_algorithm'], 
                       config['temporary_dir'], 
-                      config['ag_database_dir'], 
+                      config['database_dir'], 
                       config['aws_access_key_id'], 
                       config['aws_secret_access_key'])
         except KeyError:
@@ -127,7 +127,7 @@ class AGDatabase(object):
             
         self._db_cursor.execute( ('INSERT INTO ConfigurationSets ('
                                  +'set_id, region_name, vault_name, public_key, compression_algorithm, '
-                                 +'temporary_dir, ag_database_dir, aws_access_key_id, aws_secret_access_key'
+                                 +'temporary_dir, database_dir, aws_access_key_id, aws_secret_access_key'
                                  +') VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'), values)
 
     def read_config_from_db(self, set_id=0):

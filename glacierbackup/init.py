@@ -1,5 +1,5 @@
 """ 
-AutoGlacier database/directories/RSA keys initialization
+GlacierBackup database/directories/RSA keys initialization
 """
 import logging
 import json
@@ -10,7 +10,7 @@ from Crypto.PublicKey import RSA
 from Crypto.Random import get_random_bytes
 from Crypto.Cipher import AES, PKCS1_OAEP
 
-from autoglacier.database import AGDatabase
+from glacierbackup.database import GBDatabase
 
 
 
@@ -20,7 +20,7 @@ def initialize_ag(argparse_args):
     with open(config_path, 'r') as f:
         CONFIG = json.load(f)
     CONFIG['set_id'] = 0
-    database_dir = CONFIG['ag_database_dir']
+    database_dir = CONFIG['database_dir']
     try: 
         os.mkdir(database_dir)
     except FileExistsError:
@@ -31,13 +31,13 @@ def initialize_ag(argparse_args):
         pass
     
     if argparse_args.genkeys:
-        public = os.path.join(database_dir, 'AG_RSA_public.pem')
-        private = os.path.join(database_dir, 'AG_RSA_private.pem')
+        public = os.path.join(database_dir, 'GB_RSA_public.pem')
+        private = os.path.join(database_dir, 'GB_RSA_private.pem')
         public_key = gen_RSA_keys(private, public)
         CONFIG['public_key'] = public_key.decode('utf8')
 
-    database_path = os.path.join(CONFIG['ag_database_dir'], 'AG_database.sqlite')
-    DB = AGDatabase(database_path)
+    database_path = os.path.join(database_dir, 'GB_database.sqlite')
+    DB = GBDatabase(database_path)
     DB.initialize(CONFIG)
 
 

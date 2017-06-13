@@ -1,18 +1,18 @@
 """
-Defines command line interface for AutoGlacier
+Defines command line interface for GlacierBackup
 
 """
 import argparse
 import logging
 import os
 
-from autoglacier.init import initialize_ag
-from autoglacier.jobs import do_backup_job
-from autoglacier.misc import manage_configs
-from autoglacier.file_management import register_file_list
+from glacierbackup.init import initialize_ag
+from glacierbackup.jobs import do_backup_job
+from glacierbackup.misc import manage_configs
+from glacierbackup.file_management import register_file_list
 
 
-DEFAULT_DATABASE_PATH = os.path.join(os.path.expanduser('~'), '.autoglacier/AG_database.sqlite')
+DEFAULT_DATABASE_PATH = os.path.join(os.path.expanduser('~'), '.glacierbackup/GB_database.sqlite')
 DEFAULT_CONFIG_ID = 0
 predefined_args = argparse.Namespace(database=DEFAULT_DATABASE_PATH, 
                                      configid=DEFAULT_CONFIG_ID)
@@ -25,18 +25,18 @@ def _construct_argparse_parser(return_all_parsers=0):
     Returns:
         argparse.ArgumentParser instance
     """
-    autoglacier_desc  = """
-AutoGlacier tracks and backs-up small files into Amazon Glacier.
+    glacierbackup_desc  = """
+GlacierBackup tracks and backs-up small files into Amazon Glacier.
 Example usage:
 
-    $ autoglacier init ./conf.json --genkeys
-    $ autoglacier register --filelist ~/small_files.lst
-    $ autoglacier job
+    $ glacierbackup init ./conf.json --genkeys
+    $ glacierbackup register --filelist ~/small_files.lst
+    $ glacierbackup job
 """
-    autoglacier_epoligdesc = """
+    glacierbackup_epoligdesc = """
 This Amazon Glacier backup script is aimed at the case when one needs to 
 back-up a considerable number of small files into cold-storage, i.e. to 
-prevent data loss caused by ransomware attack. AutoGlacier keeps track 
+prevent data loss caused by ransomware attack. GlacierBackup keeps track 
 of files: checks if their contents changed, backs them up if so, and notes 
 which version of which file was backed up into which archive and when.
 This information comes very handy as every uploaded backup is an
@@ -46,9 +46,9 @@ The tool is aimed at simplicity, portability and extendability, featuring
 file changes tracking, local metadata logging, data compression, encryption
 and (some) file-picking functionality. Alpha at the moment (although it works!).
 """
-    parser = argparse.ArgumentParser(prog='AutoGlacier', 
-                                     description=autoglacier_desc,
-                                     epilog=autoglacier_epoligdesc,
+    parser = argparse.ArgumentParser(prog='GlacierBackup', 
+                                     description=glacierbackup_desc,
+                                     epilog=glacierbackup_epoligdesc,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     subparsers = parser.add_subparsers()
 
@@ -64,7 +64,7 @@ The config_file should be a proper JSON file storing
 the following parameters:
     {
       "set_id" : 0,
-      "ag_database_dir": database_directory,
+      "database_dir": database_directory,
       "compression_algorithm" : "lzma",
       "temporary_dir": tmp_dir,
       "public_key": "key",
@@ -73,7 +73,7 @@ the following parameters:
       "aws_access_key_id": "key",
       "aws_secret_access_key": "key"
     }"""
-    init = subparsers.add_parser('init', help="Initialize AutoGlacier configuration and database",
+    init = subparsers.add_parser('init', help="Initialize GlacierBackup configuration and database",
                                  epilog=init_epidesc,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     init.set_defaults(func=initialize_ag)
@@ -83,21 +83,21 @@ the following parameters:
     
     register_epidesc = """
 Register registers files in the database, or more precisely speaking,
-absolute paths to files. AutoGlacier stores no information about file 
+absolute paths to files. GlacierBackup stores no information about file 
 contents aside from SHA256 hash, however currently it determines if 
 the file has changed and backup is needed from the modification time.
 """
-    register = subparsers.add_parser('register', help="Register files in AutoGlacier database",
+    register = subparsers.add_parser('register', help="Register files in GlacierBackup database",
                                      epilog=register_epidesc,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     register.set_defaults(func=register_file_list)
-    register.add_argument('--database', help="path to AG database", default=DEFAULT_DATABASE_PATH)
+    register.add_argument('--database', help="path to GB database", default=DEFAULT_DATABASE_PATH)
     register.add_argument('--configid', help="configuration set ID", default=DEFAULT_CONFIG_ID)
     register.add_argument('--filelist', help="read files from text file, one absolute path per line")
     
     job_epidesc = """
-AutoGlacier backup job is launched against a database and proceeds in an
-automated fashion. AutoGlacier checks if any new files were registered 
+GlacierBackup backup job is launched against a database and proceeds in an
+automated fashion. GlacierBackup checks if any new files were registered 
 and if any old registered files were changed, then gathers them, packs,
 encrypts and uploads into Glacier using credentials from a given 
 configuration set (default 0). Jobs can be safely cron-automated.
@@ -105,12 +105,12 @@ configuration set (default 0). Jobs can be safely cron-automated.
     backup = subparsers.add_parser('job', help="Do backup Job - gathers and uploads files into Glacier",
                                    epilog=job_epidesc,
                                    formatter_class=argparse.RawDescriptionHelpFormatter)
-    backup.add_argument('--database', help="path to AG database", default=DEFAULT_DATABASE_PATH)
+    backup.add_argument('--database', help="path to GB database", default=DEFAULT_DATABASE_PATH)
     backup.add_argument('--configid', help="configuration set ID", default=DEFAULT_CONFIG_ID)
     #~ backup.add_argument('--description', help="", default=)
     backup.set_defaults(func=do_backup_job)
     
-    config = subparsers.add_parser('config', help="Show/add/delete AutoGlacier configuration sets")
+    config = subparsers.add_parser('config', help="Show/add/delete GlacierBackup configuration sets")
     config.set_defaults(func=manage_configs)
     config.add_argument('--show', help="show existing configs", action='store_true', default=False)
 

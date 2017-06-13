@@ -9,11 +9,11 @@ import logging
 
 import pandas as pd # REQUIRES SQLALCHEMY for direct SQLite read?
 
-from autoglacier.database import AGDatabase
+from glacierbackup.database import GBDatabase
 
 
 def register_file_list(argparse_args):
-    DB = AGDatabase(argparse_args.database)
+    DB = GBDatabase(argparse_args.database)
     DB.connect()
     fm = FileManager(DB, argparse_args.configid)
     fm.read_file_list(argparse_args.filelist)
@@ -23,7 +23,7 @@ def register_file_list(argparse_args):
 
 
 class FileManager(object):
-    ''' Registers paths in AutoGlacier database 
+    ''' Registers paths in GlacierBackup database 
     
     Possibe file registration methods:
         [ ] direct path to files

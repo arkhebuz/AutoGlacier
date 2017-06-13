@@ -13,12 +13,12 @@ from Crypto.PublicKey import RSA
 from Crypto.Random import get_random_bytes
 from Crypto.Cipher import AES, PKCS1_OAEP
 
-from autoglacier.database import AGDatabase
+from glacierbackup.database import GBDatabase
 
 
 
 def do_backup_job(argparse_args):
-    with AGDatabase(argparse_args.database) as DB:
+    with GBDatabase(argparse_args.database) as DB:
         bj = BackupJob(DB, 'asdf', configuration_set_id=argparse_args.configid)
         bj.run()
 
@@ -32,9 +32,9 @@ class BackupJob(object):
               'none': ['', '.tar'],
               '': ['', '.tar']}
     
-    def __init__(self, ag_database, job_description, configuration_set_id=0):
+    def __init__(self, gb_database, job_description, configuration_set_id=0):
         self.logger = logging.getLogger("JobLogger")
-        self.DB = ag_database
+        self.DB = gb_database
         self.CONFIG = self.DB.read_config_from_db(set_id=configuration_set_id)
         self.description = job_description
         self.timestamp = time.time()

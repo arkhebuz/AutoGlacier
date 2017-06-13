@@ -6,8 +6,8 @@ from Crypto.Cipher import AES, PKCS1_OAEP
 
 def manage_configs(argparse_args):
     if argparse_args.show:
-        from autoglacier.database import AGDatabase
-        with AGDatabase(argparse_args.database) as DB:
+        from autoglacier.database import GBDatabase
+        with GBDatabase(argparse_args.database) as DB:
             config = DB.read_config_from_db(set_id=argparse_args.configid)
             for k in config.keys():
                 print(k, ' = ', config[k])

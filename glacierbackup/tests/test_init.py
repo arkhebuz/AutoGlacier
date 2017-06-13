@@ -4,9 +4,9 @@ import os
 import logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-from autoglacier.ag_command import _construct_argparse_parser
-from autoglacier.jobs import BackupJob
-from autoglacier.database import AGDatabase, AGDatabaseError
+from glacierbackup.command import _construct_argparse_parser
+from glacierbackup.jobs import BackupJob
+from glacierbackup.database import GBDatabase, GBDatabaseError
 
 
 
@@ -37,8 +37,8 @@ class TemplateSetupTeardown(object):
     @classmethod
     def setup_class(cls):
         # Startup config
-        cls.database_dir = os.path.join(os.path.expanduser('~'), '.autoglacier/__TESTS')
-        cls.database_path = os.path.join(cls.database_dir, 'AG_database.sqlite')
+        cls.database_dir = os.path.join(os.path.expanduser('~'), '.glacierbackup/__TESTS')
+        cls.database_path = os.path.join(cls.database_dir, 'GB_database.sqlite')
         tmp_dir = os.path.join(cls.database_dir, 'TMP')
         try:
             os.makedirs(tmp_dir)
@@ -48,7 +48,7 @@ class TemplateSetupTeardown(object):
                   "set_id" : 0,
                   "compression_algorithm" : "lzma",
                   "temporary_dir": tmp_dir,
-                  "ag_database_dir": cls.database_dir,
+                  "database_dir": cls.database_dir,
                   "public_key": "None",
                   "region_name": "eu-west-1",
                   "vault_name": "TestVault1",
@@ -67,8 +67,8 @@ class TemplateSetupTeardown(object):
         shutil.rmtree(cls.database_dir)
 
 
-class TestAGDatabase(TemplateSetupTeardown):
-    """ Tests directly autoglacier.database.AGDatabase """
+class TestGBDatabase(TemplateSetupTeardown):
+    """ Tests directly glacierbackup.database.GBDatabase """
     with open("__keys.json", 'r') as f:
         keys = json.load(f)
     
@@ -77,14 +77,14 @@ class TestAGDatabase(TemplateSetupTeardown):
             os.remove(self.database_path)
     
     def test_operation_protection_on_disconnected_database(self):
-        DB = AGDatabase(self.database_path)
-        with pytest.raises(AGDatabaseError):
+        DB = GBDatabase(self.database_path)
+        with pytest.raises(GBDatabaseError):
             DB.change('Select * from Jobs')
         
     def test_database_initialization(self):
-        DB = AGDatabase(self.database_path)
+        DB = GBDatabase(self.database_path)
         DB.initialize(self._cnf)
-        with pytest.raises(AGDatabaseError):
+        with pytest.raises(GBDatabaseError):
             CONFIG = DB.read_config_from_db(set_id=0)
         
         DB.connect()
@@ -93,7 +93,7 @@ class TestAGDatabase(TemplateSetupTeardown):
             assert CONFIG[k] == self._cnf[k]
         
     def test_multiple_close_calls(self):
-        DB = AGDatabase(self.database_path)
+        DB = GBDatabase(self.database_path)
         DB.initialize(self._cnf)
         # Should rise no errors
         DB.close()
@@ -104,19 +104,19 @@ class TestAGDatabase(TemplateSetupTeardown):
         del DB
     
     def test_writing_to_Files(self):
-        DB = AGDatabase(self.database_path)
+        DB = GBDatabase(self.database_path)
         DB.initialize(self._cnf)
         with DB:
             v = ('abs', 1, 0, 1)
             DB.change('INSERT INTO Files (abs_path, registration_date, file_exists, registered) VALUES (?,?,?,?)', v)
             
-        with AGDatabase(self.database_path) as DB:
+        with GBDatabase(self.database_path) as DB:
             row = DB.fetch_row('SELECT * FROM Files WHERE abs_path=?', (v[0],))
             for i, val in enumerate(row):
                 assert v[i] == val
 
     def test_writing_two_identical_abs_path_to_Files(self):
-        DB = AGDatabase(self.database_path)
+        DB = GBDatabase(self.database_path)
         DB.initialize(self._cnf)
         with DB:
             v = ('abs', 1, 0, 1)
@@ -126,7 +126,7 @@ class TestAGDatabase(TemplateSetupTeardown):
                 DB.change('INSERT INTO Files (abs_path, registration_date, file_exists, registered) VALUES (?,?,?,?)', v)
         
     def test_writing_to_Backups(self):
-        DB = AGDatabase(self.database_path)
+        DB = GBDatabase(self.database_path)
         DB.initialize(self._cnf)
         with DB:
             vs = [('abs', 1, 'abc', 1),
@@ -134,14 +134,14 @@ class TestAGDatabase(TemplateSetupTeardown):
                   ('abs', 3, 'ddd', 3),]
             DB.change_many('INSERT INTO Backups (abs_path, mod_date, sha256, job_id) VALUES (?,?,?,?)', vs)
             
-        with AGDatabase(self.database_path) as DB:
+        with GBDatabase(self.database_path) as DB:
             rows = DB.fetch_all('SELECT * FROM Backups')
             for written, read in zip(vs, rows):
                 for v1, v2 in zip(written, read):
                     assert v1 == v2
 
     def test_writing_duplicates_to_Backups(self):
-        DB = AGDatabase(self.database_path)
+        DB = GBDatabase(self.database_path)
         DB.initialize(self._cnf)
         with DB:
             vs = [('abs', 1, 'abc', 1),
@@ -152,7 +152,7 @@ class TestAGDatabase(TemplateSetupTeardown):
                 DB.change_many('INSERT INTO Backups (abs_path, mod_date, sha256, job_id) VALUES (?,?,?,?)', vs)
 
     def test_writing_nonsense_to_Backups(self):
-        DB = AGDatabase(self.database_path)
+        DB = GBDatabase(self.database_path)
         DB.initialize(self._cnf)
         with DB:
             vs = [('abs', 1, 'abc', 1),
@@ -169,7 +169,7 @@ class TestsFunctional(TemplateSetupTeardown):
     which is created and altered by executing actions/test cases
     earlier. They also simultaniusly depend on the files (i.e.
     backed_files -> archive -> encryped_archive). This could be mitigated
-    by preparing entire state from scratch, independently from autoglacier
+    by preparing entire state from scratch, independently from glacierbackup
     funcionality, by writing custom straight-to-the-state setups or state
     injection. However it would require substantial effort at the very 
     early stage of development when things are mostly in flux, so a fixed 
@@ -177,7 +177,7 @@ class TestsFunctional(TemplateSetupTeardown):
     It still has the benefit of automated execution and can better pin down
     a faillure location.
     
-    Note that the test order below roughly mimics how autoglacier would
+    Note that the test order below roughly mimics how glacierbackup would
     be used from CLI. """
     with open("__keys.json", 'r') as f:
         keys = json.load(f)
@@ -187,18 +187,18 @@ class TestsFunctional(TemplateSetupTeardown):
         args = parser.parse_args(['init', '--genkeys', self.sample_conf_file])
         args.func(args)
         
-        DB = AGDatabase(os.path.join(self.database_dir, 'AG_database.sqlite'))
+        DB = GBDatabase(os.path.join(self.database_dir, 'GB_database.sqlite'))
         DB.connect()
         CONFIG = DB.read_config_from_db()
         
         assert CONFIG['vault_name'] == self._cnf['vault_name']
-        assert CONFIG['ag_database_dir'] == self._cnf['ag_database_dir']
+        assert CONFIG['database_dir'] == self._cnf['database_dir']
         assert CONFIG['temporary_dir'] == self._cnf['temporary_dir']
         assert len(CONFIG['public_key']) > 100      # TODO: Should do better...
-        assert os.path.isfile(os.path.join(self.database_dir, 'AG_RSA_private.pem'))
+        assert os.path.isfile(os.path.join(self.database_dir, 'GB_RSA_private.pem'))
         
     def test_registering_files_by_file_list(self):
-        database_path = os.path.join(self.database_dir, 'AG_database.sqlite')
+        database_path = os.path.join(self.database_dir, 'GB_database.sqlite')
         parser = _construct_argparse_parser()
         args = parser.parse_args(['register', '--database', database_path,
                                   '--filelist', self.list_of_files_path])
@@ -214,8 +214,8 @@ class TestsFunctional(TemplateSetupTeardown):
         assert len(files_in_db) == 6
         
     def test_backup_job_initialization(self):
-        database_path = os.path.join(self.database_dir, 'AG_database.sqlite')
-        self.__class__.DB = AGDatabase(database_path)
+        database_path = os.path.join(self.database_dir, 'GB_database.sqlite')
+        self.__class__.DB = GBDatabase(database_path)
         self.__class__.DB.connect()
         self.__class__.BJ = BackupJob(self.__class__.DB, 'asdf')
                 
@@ -243,5 +243,5 @@ class TestsFunctional(TemplateSetupTeardown):
         pass
         
     def test_backup_job_upload_into_glacier(self):
-        self.__class__.BJ.upload_into_glacier()
+        #~ self.__class__.BJ.upload_into_glacier()
         pass
