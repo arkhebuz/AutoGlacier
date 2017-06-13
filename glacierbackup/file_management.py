@@ -7,8 +7,6 @@ import glob
 import sqlite3
 import logging
 
-import pandas as pd # REQUIRES SQLALCHEMY for direct SQLite read?
-
 from glacierbackup.database import GBDatabase
 
 

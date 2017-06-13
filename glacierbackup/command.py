@@ -125,10 +125,14 @@ configuration set (default 0). Jobs can be safely cron-automated.
         return parser
 
 
-if __name__ == "__main__":
+def main():
     logging.basicConfig(level=logging.WARNING,
                         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
     parser = _construct_argparse_parser()
     args = parser.parse_args(namespace=predefined_args)
     args.func(args)
+
+if __name__ == "__main__":
+    main()
+
